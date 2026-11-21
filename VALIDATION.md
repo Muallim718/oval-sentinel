@@ -1,6 +1,14 @@
 # Validation performed
 
-## Current default, revision 16
+## Current default, revision 20
+
+The selected **4.04** controller stays in isolated early duels while its
+health and the opponent's remaining HP support the engagement. All 125 tests
+passed locally and on Linux. The restricted container answered 300/300 on
+time, with p99 12.9 ms and a 14.9 ms maximum.
+[Duel design, paired trials, and official score](docs/REVISION_20.md)
+
+## Revision 16: dedicated opening missions
 
 The selected **3.75** controller gains early weapons and cubes through checked
 missions and returns to the 3.73 policy under pressure. All 118 tests passed

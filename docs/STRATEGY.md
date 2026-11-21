@@ -31,6 +31,10 @@ cost. Current safe positions receive a small preference to reduce indecision.
 Healthy mechs engage a single exposed opponent when the HP comparison is favorable;
 two exposed opponents trigger evasive positioning. Duel spacing depends on the
 secondary weapon: lightning moves into arc range, while lasers keep more distance.
+With more than eight mechs remaining, an isolated duel can continue below the
+ordinary health threshold against a weaker opponent. The bot uses closer gun
+spacing when it can close safely. Crossfire, incoming damage from another mech,
+the storm, and sheltered repairs take priority over that commitment.
 
 Observed loot is remembered when the bot looks away. Cubes expire from memory
 after 25 seconds, weapons and crates after 60 seconds. Nearby unobstructed negative

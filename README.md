@@ -7,12 +7,12 @@ library only. The `Dockerfile` is already at the repository root.
 
 Public repository: [Muallim718/oval-sentinel](https://github.com/Muallim718/oval-sentinel)
 
-**Best scored entry: 3.75 placement points**, with early power acquisition
-on top of the 3.73 kill-salvage controller. Receipt `BB-3283154A` scored commit
-`2b328349109577b217ef89fd1e7eba77b1aa7253` on 2026-11-21 at 3:27 PM EST. The site
-selected it automatically. The `score-3.75` tag preserves the exact submission.
-[Opening design and practice result](docs/REVISION_16.md)
-This is below the leading teams; the site provides no individual match breakdown.
+**Best scored entry is 4.04 placement points.** This version follows through
+in isolated early duels while preserving cover, kill rewards, and the power
+opener. Receipt `BB-5EE1F65A` scored commit
+`47a4d7d56a20a274dd8c38f946c8456fc9fa8176` on 2026-11-21 at 4:00 PM EST.
+The site selected it automatically. The `score-4.04` tag preserves the exact
+submission. [Duel design and practice result](docs/REVISION_20.md)
 
 | Version | Change | Practice score |
 | --- | --- | ---: |
@@ -26,15 +26,14 @@ This is below the leading teams; the site provides no individual match breakdown
 | [14](docs/REVISION_14.md) | Finish weakened opponents within the incoming damage budget | 3.58 |
 | [15](docs/REVISION_15.md) | Prepare laser shots behind cover and return after release | 3.58 |
 | [16](docs/REVISION_16.md) | Acquire early weapons and cubes through dedicated missions | **3.75** |
+| [20](docs/REVISION_20.md) | Sustain isolated duels through the first waves | **4.04** |
 
-**The default runtime matches the 3.75 controller.** Earlier readiness,
-rooftop, and duel experiments scored lower. The complete roof
-candidate, including its 141 tests and timing tools, remains public on
-[`experiment/roof-zone`](https://github.com/Muallim718/oval-sentinel/tree/experiment/roof-zone).
+**The default runtime matches the 4.04 controller.** The exact source and
+tests for earlier revisions remain public in their tags and experiment branches.
 
-**Linux sandbox verified:** the selected revision 16 passed 118 behavioral tests
-and the official restricted-container check, with 300/300 on-time replies and a
-19.1 ms maximum response. [Validation and experimental results](VALIDATION.md)
+**Linux sandbox verified.** Revision 20 passed 125 tests. The official
+restricted-container check received 300/300 on-time replies, with a 14.9 ms
+maximum response. [Validation and experimental results](VALIDATION.md)
 
 **Start here:** run the checks below, read [the strategy](docs/STRATEGY.md), and
 consult the [full submission history](docs/PRACTICE_LOG.csv). Experiments that

@@ -15,3 +15,4 @@ db1cc9a23c54d15c13c3331df4587f0d1bafd3c9,2026-11-21T15:00-05:00,3.73,12.27,Revis
 0cb62afeef79b6fc0d6e4f908a2ecdcc94424aad,2026-11-21T15:07-05:00,3.58,12.42,Revision 14 short lethal commitment; receipt BB-34293991,0.05 below its 3.63 baseline; 3.73 remains selected
 d897246cdea06bbdf4658e4d78fc729c5ca26cb2,2026-11-21T15:15-05:00,3.58,12.42,Revision 15 laser corner cycle; receipt BB-149421CA,0.15 below its 3.73 baseline; 3.73 remains selected
 2b328349109577b217ef89fd1e7eba77b1aa7253,2026-11-21T15:27-05:00,3.75,12.25,Revision 16 early power missions and faster scanning; receipt BB-3283154A,0.02 above 3.73; selected best; no match-level diagnosis
+47a4d7d56a20a274dd8c38f946c8456fc9fa8176,2026-11-21T16:00-05:00,4.04,11.96,Revision 20 sustained isolated early duels (receipt BB-5EE1F65A),0.29 above 3.75 and selected best. Aggregate score only.
