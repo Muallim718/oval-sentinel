@@ -1,5 +1,9 @@
 # Revision 24 fixes the ready mortar aim deadlock
 
+Revision 58 applies this same mortar behavior to the scored 4.50 early
+equipment and upgrade controller. The physical comparisons below isolate
+the original shared-aim problem.
+
 The mortar can own the only torso aim while its fixed alignment gate
 keeps refusing to fire. At 45 m a sprinting transverse mech can turn the
 desired angle more than the gate permits between observations. The gun
