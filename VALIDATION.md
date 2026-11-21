@@ -51,11 +51,28 @@ checked bot commit `68b9a63a0f676998df0642f1657b808ea3b26cd0` on Ubuntu 24.04.
 
 ## Not yet verified
 
-- **Actual practice or final performance.** No scored matches have been run. The
-  official kit provides a recording, not an interactive engine. It cannot measure
-  wins, placement, route success over a full match, or an improvement over 1.15.
-- **Finalist rebuild and event submission.** The repository is public, but no URL
-  has yet been submitted and no submission slot has been consumed.
+- **Finalist performance and rebuild.** The first scored practice run completed,
+  but no qualifier or final has been played. The kit replay is not a simulation
+  and cannot measure placement or full-match route success.
+- **Match-level diagnosis.** The event page showed an aggregate score; no win rate,
+  per-match placements, or replay analysis was available in the submission summary.
+
+## First scored practice submission
+
+- Receipt: `BB-3FEACC8C`.
+- Submitted: 2026-11-21, 9:12 AM EST, for team Mu.
+- Commit: `d8e307a9dc89bf858edb40993daf15581a9afe2b` (verified by the
+  [successful Linux workflow](https://github.com/Muallim718/oval-sentinel/actions/runs/44911863761)).
+- Status: **Scored**.
+- Score: **1.50** placement points, +0.35 over the published 1.15 starter baseline.
+- Implied average placement: approximately 14.50, from `16 - score`.
+- Observed board position when read: 233 of 247 teams; this can change.
+- The site marked it "Entered in the final (your best score)". This is the
+  automatic current-entry selection, not confirmation of qualification.
+- One hourly submission slot was consumed; three remained immediately afterward.
+
+The result establishes a scored baseline. It does not establish competitive or
+winning performance. The original submitted commit remains publicly available.
 
 ## Reproduce
 

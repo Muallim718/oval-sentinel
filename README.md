@@ -14,9 +14,11 @@ tests and the official restricted-container check (300/300 on-time answers;
 **Start here:** run the tests, create a public GitHub repository from this folder,
 wait for its Linux sandbox check to pass, then submit that repository's URL.
 
-This is a complete implementation, not a demonstrated winning entry. The kit
-contains a recorded protocol test, not a match simulator. No placement score or
-win rate has been measured yet.
+**First scored practice result: 1.50 placement points**, versus the starter's
+1.15 (+0.35). Receipt `BB-3FEACC8C` scored commit `d8e307a9dc89bf858edb40993daf15581a9afe2b`
+on 2026-11-21. The site selected it as the team's current best entry. This is a
+working baseline, not a demonstrated winning entry; its observed board position
+was 233 of 247 teams when the result was read. No win rate was provided.
 
 ## 1. Test it
 
@@ -98,7 +100,8 @@ gh repo create YOUR-USERNAME/oval-sentinel --public --source . --remote origin -
 ```
 
 This project is already published at `Muallim718/oval-sentinel`; skip repository
-creation if you are using that repository. No scored submission has been made yet.
+creation if you are using that repository. The initial scored submission is
+recorded in `docs/PRACTICE_LOG.csv`; submitting again consumes another hourly slot.
 
 In GitHub's **Actions** tab, wait for **Bot checks / linux-sandbox** to pass.
 It builds the pinned image and checks no-network execution, uid 65534, one CPU,
