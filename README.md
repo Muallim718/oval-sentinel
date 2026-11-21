@@ -7,6 +7,10 @@ library only. The `Dockerfile` is already at the repository root.
 
 Public repository: https://github.com/Muallim718/oval-sentinel
 
+**Revision 7 candidate:** briefly return gun fire during recovery after an incoming
+weapon hit. The [isolated change, evidence, tests, and tradeoff](docs/REVISION_7.md)
+are documented. This candidate has not yet been scored.
+
 **Revision 6 experiment: 3.10**, below the 3.21 best. Preferring lightning and
 replacing idle lasers was not adopted. The default runtime again matches revision
 4. [Findings and tests](docs/REVISION_6.md) are recorded, and the candidate remains

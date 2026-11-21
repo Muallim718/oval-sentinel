@@ -90,17 +90,22 @@ class Combat:
             return None
         return aim_at(origin, point), point, radius, height
 
-    def action(self, me, targets, retreat, final_duel):
+    def action(self, me, targets, retreat, final_duel, return_fire=False):
         if not targets:
             return None, [False, False], None
         options = []
         for target in targets[:8]:
             d = distance(me["pos"], target["pos"])
             hostile = target.get("kind") == "mech"
+            gun_only = False
             if retreat and not final_duel and (not hostile or d > 28) and target.get("hp", 1400) > 130:
-                continue
+                if not (return_fire and hostile):
+                    continue
+                gun_only = True
             for slot, weapon in enumerate(me["weapons"]):
                 if weapon is None:
+                    continue
+                if gun_only and weapon["kind"] != "gun":
                     continue
                 solution = self.solve(me, target, weapon)
                 if solution is None:
@@ -121,10 +126,10 @@ class Combat:
                 score -= weapon.get("cooldown", 0)*65
                 if kind == "gun" and (weapon.get("reload", 0) > 0 or weapon.get("ammo", 1) <= 0):
                     score -= 65
-                options.append((score, slot, target, solution))
+                options.append((score, slot, target, solution, gun_only))
         if not options:
             return None, [False, False], None
-        _, primary, target, solution = max(options, key=lambda o: o[0])
+        _, primary, target, solution, gun_only = max(options, key=lambda o: o[0])
         self.locked_id = target.get("id")
         aim, point, radius, height = solution
         stats_me = me["stats"]
@@ -132,6 +137,8 @@ class Combat:
         fire = [False, False]
         for slot, weapon in enumerate(me["weapons"]):
             if not weapon:
+                continue
+            if gun_only and weapon["kind"] != "gun":
                 continue
             solved = solution if slot == primary else self.solve(me, target, weapon)
             if solved is None:

@@ -45,6 +45,7 @@ class Bot:
         self.goal, self.goal_kind = None, "rotate"
         self.next_goal = -1
         self.last_damage = -100
+        self.last_weapon_damage = -100
         self.last_attack = -100
         self.last_position = None
         self.stuck_since = None
@@ -68,6 +69,8 @@ class Bot:
         for event in obs["events"]:
             if event["type"] == "damaged":
                 self.last_damage = now
+                if event.get("weapon") not in (None, "zone"):
+                    self.last_weapon_damage = now
             elif event["type"] == "kill":
                 self.seen.pop(event["target"], None)
         self.seen = {k:v for k,v in self.seen.items() if now-v[0] < tuning.THREAT_MEMORY}
@@ -333,7 +336,11 @@ class Bot:
             # Crate farming only when quiet and close enough to collect the cube.
             targets += sorted((c for c in self.loot.get("crates") if distance(me["pos"],c["pos"]) < 110),
                               key=lambda c: distance(me["pos"],c["pos"]))
-        aim, fire, target = self.combat.action(me, targets, retreat, obs["alive"] <= 2)
+        # Healing is already interrupted under fire. Answer with the gun briefly,
+        # preserving movement speed and energy; stop once incoming hits cease.
+        return_fire = now-self.last_weapon_damage < 1.0
+        aim, fire, target = self.combat.action(me, targets, retreat, obs["alive"] <= 2,
+                                             return_fire=return_fire)
         if aim is None:
             # Face the nearest threat even while running the other way: rear hits
             # hurt 50% more. When quiet, periodically scan all directions.
