@@ -60,6 +60,7 @@ class Bot:
         self.next_goal = -1
         self.last_damage = -100
         self.last_weapon_damage = -100
+        self.incoming_hint = None
         self.last_attack = -100
         self.last_position = None
         self.stuck_since = None
@@ -88,6 +89,14 @@ class Bot:
             elif event["type"] == "kill":
                 self.salvage.record_kill(now, event["target"], self.seen.get(event["target"]))
                 self.seen.pop(event["target"], None)
+                if self.incoming_hint and event["target"] == self.incoming_hint[1]:
+                    self.incoming_hint = None
+        incoming = [event for event in obs["events"] if event["type"] == "damaged" and
+                    event.get("bearing") is not None and isinstance(event.get("by"), int) and
+                    0 <= event["by"] < 16]
+        if incoming:
+            strongest = max(incoming, key=lambda event: event["amount"])
+            self.incoming_hint = (now, strongest["by"], strongest["bearing"])
         self.seen = {k:v for k,v in self.seen.items() if now-v[0] < tuning.THREAT_MEMORY}
 
     def threats(self, now):
@@ -434,6 +443,10 @@ class Bot:
             damaged = [e for e in obs["events"] if e["type"] == "damaged" and e.get("bearing") is not None]
             if damaged:
                 aim = [damaged[-1]["bearing"], 0.0]
+            elif self.incoming_hint and now-self.incoming_hint[0] < 1.1:
+                # At 4 rad/s, turning all the way around takes almost .8 s.
+                # Give incoming fire time to enter the actual torso's view.
+                aim = [self.incoming_hint[2], 0.0]
         action = {"tick": obs["tick"], "move": move, "boost": boost,
                   "jump": jump, "aim": aim, "fire": fire}
         gun = next((w for w in me["weapons"] if w and w["kind"] == "gun"), None)
