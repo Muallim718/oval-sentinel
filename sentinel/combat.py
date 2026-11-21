@@ -90,7 +90,8 @@ class Combat:
             return None
         return aim_at(origin, point), point, radius, height
 
-    def action(self, me, targets, retreat, final_duel, return_fire=False, forced_weapon=None):
+    def action(self, me, targets, retreat, final_duel, return_fire=False, forced_weapon=None,
+               *, boost=False):
         if not targets:
             return None, [False, False], None
         options = []
