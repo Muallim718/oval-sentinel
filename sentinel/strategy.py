@@ -17,6 +17,7 @@ from .salvage import KillSalvage
 from .opener import Opener
 from .duel_commitment import DuelCommitment
 from .quiet_window import QuietWindow
+from .upgrade_economy import UpgradeEconomy
 
 
 def future_circle(zone, now, seconds):
@@ -52,6 +53,7 @@ class Bot:
         self.opener = Opener(self.world, self.config)
         self.commitment = DuelCommitment(self.config)
         self.quiet_window = QuietWindow(self.config)
+        self.upgrade_economy = UpgradeEconomy(self.config, tuning.UPGRADE_VALUE)
         self.motion = GroundSteering(self.world, self.config)
         self.cover_active = False
         self.cover_watch_goal = None
@@ -482,8 +484,10 @@ class Bot:
             quiet = target is None and not any(distance(me["pos"],e["pos"]) < 150 for e,c in threats)
             action["reload"] = gun.get("ammo",0) <= 0 or (quiet and gun.get("ammo",0) < gun["stats"]["mag"]*0.65)
         if obs.get("offer"):
-            choices = obs["offer"]["choices"]
-            action["pick"] = max(range(len(choices)), key=lambda i: tuning.UPGRADE_VALUE.get(choices[i]["id"], 0))
+            pick = self.upgrade_economy.choose(obs, target=self.duel, recovering=self.recovering,
+                                               sheltered=repairing)
+            if pick is not None:
+                action["pick"] = pick
         held = [w["kind"] for w in me["weapons"] if w]
         second = me["weapons"][1]
         if second is None or second["kind"] == "mortar":
