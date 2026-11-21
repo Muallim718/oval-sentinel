@@ -90,7 +90,7 @@ class Combat:
             return None
         return aim_at(origin, point), point, radius, height
 
-    def action(self, me, targets, retreat, final_duel, return_fire=False):
+    def action(self, me, targets, retreat, final_duel, return_fire=False, forced_weapon=None):
         if not targets:
             return None, [False, False], None
         options = []
@@ -104,6 +104,8 @@ class Combat:
                 gun_only = True
             for slot, weapon in enumerate(me["weapons"]):
                 if weapon is None:
+                    continue
+                if forced_weapon and weapon["kind"] != forced_weapon:
                     continue
                 if gun_only and weapon["kind"] != "gun":
                     continue
@@ -138,6 +140,8 @@ class Combat:
         for slot, weapon in enumerate(me["weapons"]):
             if not weapon:
                 continue
+            if forced_weapon and weapon["kind"] != forced_weapon:
+                continue
             if gun_only and weapon["kind"] != "gun":
                 continue
             solved = solution if slot == primary else self.solve(me, target, weapon)
@@ -161,7 +165,8 @@ class Combat:
                 charge = weapon.get("charge", 0)
                 same_aim = abs(angle_error(desired[0], aim[0])) < 0.03 and abs(desired[1]-aim[1]) < 0.03
                 if charge > 0:
-                    fire[slot] = not (charge >= stats["charge"] and aligned and same_aim)
+                    required = stats["min_charge"] if forced_weapon == "laser" else stats["charge"]
+                    fire[slot] = not (charge >= required and aligned and same_aim)
                 else:
                     fire[slot] = same_aim and (not retreat or d > 65)
             elif slot == primary:

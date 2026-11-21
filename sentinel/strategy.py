@@ -11,8 +11,9 @@ from .combat import Combat, aim_at
 from .geometry import World, distance, unit
 from .navigation import Navigator
 from .memory import LootMemory
-from .cover import CoverPlanner
+from .cover import CoverPlanner, firing_lane
 from .movement import GroundSteering
+from .commitment import State as FinishCommitment
 
 
 def future_circle(zone, now, seconds):
@@ -43,6 +44,7 @@ class Bot:
         self.world = World(Path(hello["map"]["dir"]))
         self.nav = Navigator(self.world, self.config["mech"])
         self.combat = Combat(self.world, self.config)
+        self.finish = FinishCommitment(self.config)
         self.cover = CoverPlanner(self.world, self.config)
         self.motion = GroundSteering(self.world, self.config)
         self.cover_active = False
@@ -291,8 +293,57 @@ class Bot:
         jump = now < self.jet_until and me["grounded"]
         return move, bool(jet or (self.sprinting and me["grounded"]) or jump), bool(jump)
 
+    def finish_danger(self, obs):
+        """Budget straight rounds and shell blasts already approaching the mech."""
+        me = obs["self"]
+        if len(obs["projectiles"]) > 32:
+            return math.inf
+        damage = 0.0
+        for projectile in obs["projectiles"]:
+            start, velocity = projectile["pos"], projectile["vel"]
+            dx, dy = start[0]-me["pos"][0], start[1]-me["pos"][1]
+            vx, vy = velocity[0]-me["vel"][0], velocity[1]-me["vel"][1]
+            closest = max(0.0, min(.6, -(dx*vx+dy*vy)/(vx*vx+vy*vy or 1)))
+            shell = projectile["kind"] == "mortar"
+            stats = self.config["weapons"]["mortar" if shell else "gun"]
+            splash = stats.get("splash_radius", 0)
+            if math.hypot(dx+vx*closest, dy+vy*closest) > me["stats"]["radius"]+splash+1:
+                continue
+            point = [start[i]+velocity[i]*closest for i in range(3)]
+            if shell:
+                point[2] -= stats["gravity"]*closest**2/2
+            feet = me["pos"][2]+me["vel"][2]*closest
+            if feet-splash-1 <= point[2] <= feet+me["stats"]["height"]+splash+1:
+                if shell or self.world.line_clear(start, point):
+                    shot = self.config["npc"]["damage"] if projectile["kind"] == "npc" else stats["damage"]
+                    damage += shot+stats.get("splash", 0)
+        return damage*me["stats"]["rear_mult"]*(1-me["stats"].get("armor", 0))
+
+    def finish_target(self, obs, threats, cover_goal):
+        me, now = obs["self"], obs["t"]
+        if ((not self.recovering and self.mode != "evade") or
+                (cover_goal is not None and self.cover.sheltered) or
+                not any(e.get("kind") == "mech" and 0 < e.get("hp", 1400) <= 450
+                        for e in obs["mechs"])):
+            self.finish.cancel("ordinary play or sheltered recovery")
+            return None
+        center, radius = future_circle(obs["zone"], now, 3)
+        charged = any(w and w["kind"] == "laser" and w.get("charge", 0) > 0 for w in me["weapons"])
+
+        def can_hit(enemy, weapon):
+            if charged and weapon["kind"] == "gun":
+                return None  # A focused gun action would release the existing charge.
+            return self.combat.solve(me, enemy, weapon)
+
+        return self.finish.choose(
+            obs, threats, can_hit=can_hit,
+            exposed=lambda enemy: firing_lane(self.world, self.config, me["pos"], me, enemy)[0],
+            zone_safe=distance(me["pos"], center)+4 < radius,
+            projectile_damage=self.finish_danger(obs))
+
     def act(self, obs):
         self.remember(obs)
+        self.finish.update(obs)
         me, now = obs["self"], obs["t"]
         self.nav.set_body(me["stats"])
         old_mode = self.mode
@@ -303,6 +354,14 @@ class Bot:
         if self.recovering or self.mode == "evade":
             cover_goal = self.cover.choose(obs, threats, self.shelter_circle(obs),
                                            recovering=self.recovering)
+        finishing = self.finish_target(obs, threats, cover_goal)
+        if finishing is not None:
+            if self.goal_kind == "cover":
+                self.next_goal = -1
+            cover_goal = None
+            self.cover.clear("short finishing opportunity under the incoming damage budget")
+            self.mode, self.duel = "fight", finishing
+            self.fight_range = max(22, min(135, distance(me["pos"], finishing["pos"])))
         if cover_goal is not None and self.cover.state == "approach":
             changed = (self.cover_watch_goal is None or
                        distance(cover_goal, self.cover_watch_goal) > 3)
@@ -340,7 +399,9 @@ class Bot:
                                      [e["pos"] for e,c in threats[:5]])
         move, boost, jump = self.steer(obs, waypoint, threats, retreat)
         targets = sorted(obs["mechs"], key=lambda e: (e["kind"] != "mech", distance(me["pos"],e["pos"])))
-        if not retreat and (not threats or distance(me["pos"],threats[0][0]["pos"]) > 110):
+        if finishing is not None:
+            targets = [finishing]
+        elif not retreat and (not threats or distance(me["pos"],threats[0][0]["pos"]) > 110):
             # Crate farming only when quiet and close enough to collect the cube.
             targets += sorted((c for c in self.loot.get("crates") if distance(me["pos"],c["pos"]) < 110),
                               key=lambda c: distance(me["pos"],c["pos"]))
@@ -348,7 +409,8 @@ class Bot:
         # preserving movement speed and energy; stop once incoming hits cease.
         return_fire = now-self.last_weapon_damage < 1.0
         aim, fire, target = self.combat.action(me, targets, retreat, obs["alive"] <= 2,
-                                             return_fire=return_fire)
+                                             return_fire=return_fire,
+                                             forced_weapon=self.finish.weapon_kind if finishing is not None else None)
         if self.cover_active and self.cover.sheltered and self.recovering:
             # A weak target or an over-wall mortar must not restart the healing
             # clock. Trigger-off releases any already-held laser into the cover.
