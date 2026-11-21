@@ -24,3 +24,12 @@ one observation of the hunter appearing.
 All 144 local tests passed. The official checker answered 300/300 on time,
 with a 6.5 ms maximum. The crowded and growing-body benchmarks had maxima
 of 21.32 and 13.66 ms.
+
+Commit `848fa6c8702fdddb1b3b0caa26982a96f0c4c1f2` passed all 144 Linux tests
+and the pinned image build. The restricted container answered 300/300 on
+time, with p99 12.9 ms and maximum 15.1 ms. The tree was 2,390,516 bytes.
+[Linux check results](https://github.com/Muallim718/oval-sentinel/actions/runs/44950300094)
+
+Receipt `BB-F9EEA8BB` scored this commit **4.00** after it was accepted at
+4:16 PM EST on November 21, 2026. The 4.04 submission remained selected.
+This run did not show a placement gain for the refit policy.
