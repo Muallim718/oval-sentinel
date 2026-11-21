@@ -1,4 +1,4 @@
-"""Sustain fire through the early isolated fights that award placement."""
+"""Sustain an isolated fight while a credible shooting lane remains."""
 from dataclasses import dataclass
 import math
 
@@ -44,7 +44,7 @@ class DuelCommitment:
         for event in obs["events"]:
             if event["type"] == "damaged" and event.get("weapon") not in ("zone", "npc"):
                 self.damage_sources[event.get("by")] = now
-        if sheltered or obs["alive"] <= 8 or not me["in_zone"] or not me["grounded"]:
+        if sheltered or obs["alive"] <= 2 or not me["in_zone"] or not me["grounded"]:
             self.target_id = None
             return None
         if distance(me["pos"], circle[0])+9 >= circle[1]:
@@ -66,9 +66,10 @@ class DuelCommitment:
         enemy_hp = enemy.get("hp", enemy.get("max_hp", 1400))
         ratio = me["hp"]/me["max_hp"]
         finish = ratio >= .23 and enemy_hp < min(520, .68*me["hp"])
-        # Continue an even contest below the ordinary 70% duel threshold. A
-        # briefly favorable finish can also justify staying below 58% health.
-        stays = ratio >= (.47 if self.target_id == enemy["id"] else .57) and enemy_hp < me["hp"]*1.30
+        pressing = (self.target_id == enemy["id"] or enemy["id"] in self.damage_sources)
+        starts = ratio >= .57 and enemy_hp < me["hp"]*1.30
+        can_continue = pressing and ratio >= .39 and enemy_hp < me["hp"]*1.70
+        stays = starts or can_continue
         if ((not finish and not stays) or self._crossfire(world, me, enemy, threats) or
                 any(source is not None and source != enemy["id"] for source in self.damage_sources)):
             self.target_id = None
@@ -76,7 +77,9 @@ class DuelCommitment:
         d = distance(me["pos"], enemy["pos"])
         enemy_weapons = enemy.get("weapons", ())
         arc, laser, mortar = (weapons.get(kind) for kind in ("lightning", "laser", "mortar"))
-        desired = 42.0
+        # At intermediate range an observed gun round has enough flight time
+        # for a short boost dodge without opening a long retreat across the map.
+        desired = 76.0
         if arc and me["energy"] >= arc["stats"]["energy"]*6+25:
             desired = .70*arc["stats"]["range"]
         elif "lightning" in enemy_weapons:

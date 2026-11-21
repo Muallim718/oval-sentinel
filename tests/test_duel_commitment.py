@@ -24,11 +24,13 @@ class DuelCommitmentTests(unittest.TestCase):
     def test_closes_an_isolated_even_fight_and_stays_through_ordinary_retreat_health(self):
         plan = self.choose()
         self.assertEqual(plan.enemy["id"], 1)
-        self.assertAlmostEqual(plan.range, 42)
+        self.assertAlmostEqual(plan.range, 76)
         self.assertTrue(plan.sprint)
         self.me["hp"], self.enemy["hp"] = 700, 820
         self.assertIsNotNone(self.choose())
         self.me["hp"] = 550
+        self.assertIsNotNone(self.choose())
+        self.me["hp"] = 510
         self.assertIsNone(self.choose())
 
     def test_lower_health_finish_requires_a_clear_advantage(self):
@@ -62,8 +64,10 @@ class DuelCommitmentTests(unittest.TestCase):
         self.assertFalse(plan.sprint)
 
     def test_late_and_last_round_empty_mag_fall_back(self):
-        self.obs["alive"] = 8
+        self.obs["alive"] = 2
         self.assertIsNone(self.choose())
+        self.obs["alive"] = 8
+        self.assertIsNotNone(self.choose())
         self.obs["alive"] = 12
         self.enemy["pos"] = [-25, 0, 0]
         self.me["weapons"][0].update(ammo=0, reload=1.2)
