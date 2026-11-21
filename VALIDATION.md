@@ -1,5 +1,40 @@
 # Validation performed
 
+## Revision 6: lightning preference checks
+
+**Experimental, not the default:** scored 3.10 versus revision 4's 3.21. Revision
+4 remains selected, and its runtime sources were restored on `main`.
+
+Commit `9172761d9f81632fddb8ede1c2b27e317d8fad24` passed the
+[Linux workflow](https://github.com/Muallim718/oval-sentinel/actions/runs/44920352185).
+Only `sentinel/strategy.py` changed among runtime sources relative to revision 4:
+lightning preference and safe replacement of an idle laser in slot 1.
+
+- All 48 behavioral tests passed locally and on Linux, including nine weapon
+  preference and replacement cases.
+- Local official checker: 300/300 on-time answers, maximum 5.0 ms.
+- Restricted-container official checker: 300/300 on-time answers, zero misses;
+  p50 0.9 ms, p90 2.8 ms, p99 7.1 ms, maximum 9.6 ms on that runner.
+- Synthetic crowded-input benchmark on the Linux host: maximum 28.71 ms;
+  growing-body variant: maximum 28.53 ms. No decisions exceeded 50 ms.
+- Committed source: 38 files, 2,129,603 bytes, below 20 MB.
+
+The synthetic inputs are latency checks, not scored matches. No individual death
+cause or placement improvement can be inferred from them.
+
+Receipt `BB-BC6740E8` was submitted on 2026-11-21 at 10:41 AM EST, after the
+requested 10:28 slot time and completion of Linux checks.
+The run completed at **3.10**, implying an average placement of approximately
+12.90. The 0.11-point decrease does not establish statistical significance, and
+no match-level breakdown was exposed. The 3.21 entry stayed selected; its observed
+board position was 174. One hourly slot remained when the result was read.
+
+The complete experiment is public on `experiment/lightning-preference`. After
+restoration, `bot.py`, `mechfight.py`, and all `sentinel/` sources were compared
+with revision 4 commit `55e2f3b557db4e93df80f4b7ee0fa2f749327a07` and match exactly.
+The restored default passed all 39 local tests and the official checker again:
+300/300 on-time answers, maximum 8.4 ms, no malformed or wrong-tick responses.
+
 ## Revision 5: shared gun/laser aim checks
 
 **Experimental, not the default:** scored 3.13 versus revision 4's 3.21. Revision

@@ -78,7 +78,7 @@ class Bot:
 
     @staticmethod
     def weapon_value(kind):
-        return {"laser": 3.0, "lightning": 4.0, "mortar": 1.0, "gun": 0.0}.get(kind, 0)
+        return {"laser": 3.0, "lightning": 3.0, "mortar": 1.0, "gun": 0.0}.get(kind, 0)
 
     def select_mode(self, obs):
         """Fight isolated pursuers; recover with hysteresis; avoid crossfire."""
@@ -357,8 +357,7 @@ class Bot:
             action["pick"] = max(range(len(choices)), key=lambda i: tuning.UPGRADE_VALUE.get(choices[i]["id"], 0))
         held = [w["kind"] for w in me["weapons"] if w]
         second = me["weapons"][1]
-        if second is None or (second["kind"] != "gun" and not
-                              (second["kind"] == "laser" and second.get("charge",0) > 0)):
+        if second is None or second["kind"] == "mortar":
             near = [p for p in obs["pickups"] if p["kind"] not in held and
                     distance(me["pos"],p["pos"]) <= self.config["loot"]["pickup_radius"] and
                     abs(me["pos"][2]-p["pos"][2]) <= 4 and
@@ -367,7 +366,6 @@ class Bot:
                 action["take"] = max(near, key=lambda p: self.weapon_value(p["kind"]))["id"]
                 if second:
                     action["drop"] = 1
-                    action["fire"][1] = False  # do not start a laser charge during the swap
         if self.debug:
             action["debug"] = {"label": f"{self.mode}/{self.goal_kind} | HP {me['hp']:.0f}",
                                "points": [{"at": [*self.goal,self.world.ground(*self.goal)], "color":"#40c0ff"}]}
