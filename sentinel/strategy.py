@@ -19,6 +19,7 @@ from .duel_commitment import DuelCommitment
 from .quiet_window import QuietWindow
 from .reload_arm import ReloadArm
 from .upgrade_economy import UpgradeEconomy
+from .selective_cover import SelectiveCover
 
 
 def future_circle(zone, now, seconds):
@@ -57,6 +58,7 @@ class Bot:
         self.reload_arm = ReloadArm(self.world, self.config)
         self.arm_active = False
         self.upgrade_economy = UpgradeEconomy(self.config, tuning.UPGRADE_VALUE)
+        self.selective_cover = SelectiveCover(self.world, self.config, self.cover)
         self.motion = GroundSteering(self.world, self.config)
         self.cover_active = False
         self.cover_watch_goal = None
@@ -405,7 +407,17 @@ class Bot:
             self.cover_watch_goal = self.cover_watch_position = None
             if not (self.recovering or self.mode == "evade"):
                 self.cover.clear("healthy or no crossfire")
-        self.cover_active = cover_goal is not None
+        selective = None
+        if (salvage_goal is None and opening is None and arming is None and not charging and
+                (duel is None or self.selective_cover.target_id is not None)):
+            quiet = repairing or (cover_goal is not None and self.cover.sheltered and
+                                  now - self.last_weapon_damage > .75)
+            screen_obs = dict(obs, mechs=[e for e in obs["mechs"] if e["id"] in active])
+            selective = self.selective_cover.choose(screen_obs, threats, self.shelter_circle(obs),
+                                                     recovering=self.recovering, quiet_shelter=quiet)
+        else:
+            self.selective_cover.cancel()
+        self.cover_active = cover_goal is not None and selective is None
         if salvage_goal is not None:
             self.cover.clear("collecting confirmed kill reward")
             self.mode, self.duel = "salvage", None
@@ -426,6 +438,13 @@ class Bot:
             self.next_goal = now+tuning.GOAL_INTERVAL
             self.objective = None
             self.jet_until = -1
+        elif selective is not None:
+            self.cover.clear("short crossfire finish uses the protected firing lane")
+            self.mode, self.duel = "screened finish", selective.target
+            self.goal, self.goal_kind = selective.goal[:2], "screened finish"
+            self.next_goal = now + tuning.GOAL_INTERVAL
+            self.objective = None
+            self.jet_until = -1
         elif self.cover_active:
             self.goal, self.goal_kind = cover_goal, "cover"
             self.objective = None
@@ -437,12 +456,17 @@ class Bot:
             self.goal = None
             self.next_goal = -1
         retreat = self.recovering and self.mode != "fight"
-        if (salvage_goal is None and opening is None and arming is None and not self.cover_active and
+        if (salvage_goal is None and opening is None and arming is None and selective is None and not self.cover_active and
                 (self.goal is None or old_mode != self.mode or now >= self.next_goal or not me["in_zone"])):
             self.goal, self.goal_kind, self.circle = self.choose_goal(obs, retreat, threats)
             self.next_goal = now+tuning.GOAL_INTERVAL
         circle = future_circle(obs["zone"], now, 12)
-        if opening is not None:
+        if selective is not None:
+            move, boost, jump = list(selective.move), False, False
+            self.sprinting = False
+            self.stuck_since = None
+            self.last_position = list(me["pos"])
+        elif opening is not None:
             waypoint = opening.waypoint or opening.goal
             move, boost = self.motion.choose(obs, waypoint, threats, "opening", 75, False,
                                              sprinting=opening.sprint, cover=False,
@@ -468,6 +492,8 @@ class Bot:
                          key=lambda e: (e["kind"] != "mech", distance(me["pos"],e["pos"])))
         if opening is not None:
             targets = [opening.exclusive_target] if opening.exclusive_target else []
+        elif selective is not None:
+            targets = [selective.target]
         elif duel is not None:
             targets = [duel.enemy]
         elif not retreat and (not threats or distance(me["pos"],threats[0][0]["pos"]) > 110):
@@ -479,13 +505,13 @@ class Bot:
         repairing = self.recovering and self.quiet_window.repair(
             obs, sheltered=self.cover_active and self.cover.sheltered and me["grounded"])
         attack_retreat = retreat
-        if retreat and active and not repairing:
-            targets = [target for target in targets if target["kind"] == "mech"]
+        if selective is not None or (retreat and active and not repairing):
+            targets = [target for target in targets if target.get("kind") == "mech"]
             attack_retreat = False
         return_fire = now-self.last_weapon_damage < 1.0
         aim, fire, target = self.combat.action(me, targets, attack_retreat, obs["alive"] <= 2,
                                              return_fire=return_fire,
-                                             forced_weapon="gun" if opening is not None else None)
+                                             forced_weapon="gun" if opening is not None or selective is not None else None)
         if repairing:
             # A weak target or an over-wall mortar must not restart the healing
             # clock. Trigger-off releases any already-held laser into the cover.
