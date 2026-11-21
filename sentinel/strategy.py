@@ -15,6 +15,7 @@ from .cover import CoverPlanner
 from .movement import GroundSteering
 from .salvage import KillSalvage
 from .opener import Opener
+from .drops import TimedDrop
 
 
 def future_circle(zone, now, seconds):
@@ -48,6 +49,7 @@ class Bot:
         self.cover = CoverPlanner(self.world, self.config)
         self.salvage = KillSalvage(self.world, self.config)
         self.opener = Opener(self.world, self.config)
+        self.drop = TimedDrop(self.world, self.config, self.nav)
         self.motion = GroundSteering(self.world, self.config)
         self.cover_active = False
         self.cover_watch_goal = None
@@ -222,12 +224,6 @@ class Bot:
                 if me["cubes"] < 10 and npc["kind"] == "npc" and distance(p,npc["pos"]) < 100:
                     away = unit(p[0]-npc["pos"][0],p[1]-npc["pos"][1])
                     candidates.append(((npc["pos"][0]+away[0]*48,npc["pos"][1]+away[1]*48),"drone",25))
-        # A completed drop restores health: useful, but never run into a crowd.
-        if nearest_threat > 85:
-            for drop in obs.get("drops", []):
-                if drop["lands_in"] < 8 and drop["holder"] in (None, me["id"]) and distance(p, drop["pos"]) < 150:
-                    value = 50+65*(1-me["hp"]/me["max_hp"])
-                    candidates.append((drop["pos"], "drop", value))
         ranked = []
         for q, kind, value in candidates:
             score = self.goal_score(q, me, circle, threats, kind, value)
@@ -317,14 +313,22 @@ class Bot:
             (me["hp"] < me["max_hp"]*.23 and now-self.last_weapon_damage < .6))
         opening = None
         charging = any(w and w["kind"] == "laser" and w.get("charge", 0) > 0 for w in me["weapons"])
-        if salvage_goal is None and not charging:
+        drop = None
+        if salvage_goal is None and obs.get("drops"):
+            drop = self.drop.choose(obs, threats, self.shelter_circle(obs), recovering=self.recovering)
+        elif self.drop.drop_id is not None:
+            self.drop.update(obs)
+            if self.drop.drop_id is not None:
+                self.drop.cancel("kill reward owns the route")
+        if salvage_goal is None and drop is None and not charging:
             opening = self.opener.choose(obs, threats, self.shelter_circle(obs),
                                          recovering=self.recovering)
         elif self.opener.current is not None:
             self.opener.cancel("existing combat action takes priority")
         cover_goal = None
         had_cover = self.cover_active
-        if salvage_goal is None and opening is None and (self.recovering or self.mode == "evade"):
+        if (salvage_goal is None and drop is None and opening is None and
+                (self.recovering or self.mode == "evade")):
             cover_goal = self.cover.choose(obs, threats, self.shelter_circle(obs),
                                            recovering=self.recovering)
         if cover_goal is not None and self.cover.state == "approach":
@@ -351,6 +355,13 @@ class Bot:
             self.next_goal = now+tuning.GOAL_INTERVAL
             self.objective = None
             self.jet_until = -1
+        elif drop is not None:
+            self.cover.clear("announced drop owns the route")
+            self.mode, self.duel = "supply", None
+            self.goal, self.goal_kind = drop.goal[:2], "capture drop"
+            self.next_goal = now+tuning.GOAL_INTERVAL
+            self.objective = None
+            self.jet_until = -1
         elif opening is not None:
             self.cover.clear("opening power mission owns the route")
             self.mode, self.duel = "opening", None
@@ -369,12 +380,22 @@ class Bot:
             self.goal = None
             self.next_goal = -1
         retreat = self.recovering and self.mode != "fight"
-        if (salvage_goal is None and opening is None and not self.cover_active and
+        if (salvage_goal is None and drop is None and opening is None and not self.cover_active and
                 (self.goal is None or old_mode != self.mode or now >= self.next_goal or not me["in_zone"])):
             self.goal, self.goal_kind, self.circle = self.choose_goal(obs, retreat, threats)
             self.next_goal = now+tuning.GOAL_INTERVAL
         circle = future_circle(obs["zone"], now, 12)
-        if opening is not None:
+        if drop is not None:
+            if drop.move is not None:
+                move, boost = list(drop.move), False
+            else:
+                move, boost = self.motion.choose(obs, drop.waypoint, threats, "opening", 75, False,
+                                                 sprinting=drop.sprint, cover=False,
+                                                 circle=future_circle(obs["zone"], now, 2))
+            jump, self.sprinting = False, boost
+            self.stuck_since = None
+            self.last_position = list(me["pos"])
+        elif opening is not None:
             waypoint = opening.waypoint or opening.goal
             move, boost = self.motion.choose(obs, waypoint, threats, "opening", 75, False,
                                              sprinting=opening.sprint, cover=False,
@@ -389,7 +410,7 @@ class Bot:
         targets = sorted(obs["mechs"], key=lambda e: (e["kind"] != "mech", distance(me["pos"],e["pos"])))
         if opening is not None:
             targets = [opening.exclusive_target] if opening.exclusive_target else []
-        elif not retreat and (not threats or distance(me["pos"],threats[0][0]["pos"]) > 110):
+        elif drop is None and not retreat and (not threats or distance(me["pos"],threats[0][0]["pos"]) > 110):
             # Crate farming only when quiet and close enough to collect the cube.
             targets += sorted((c for c in self.loot.get("crates") if distance(me["pos"],c["pos"]) < 110),
                               key=lambda c: distance(me["pos"],c["pos"]))
@@ -398,7 +419,8 @@ class Bot:
         return_fire = now-self.last_weapon_damage < 1.0
         aim, fire, target = self.combat.action(me, targets, retreat, obs["alive"] <= 2,
                                              return_fire=return_fire,
-                                             forced_weapon="gun" if opening is not None else None)
+                                             forced_weapon="gun" if opening is not None or
+                                             (drop is not None and drop.gun_only) else None)
         if self.cover_active and self.cover.sheltered and self.recovering:
             # A weak target or an over-wall mortar must not restart the healing
             # clock. Trigger-off releases any already-held laser into the cover.
