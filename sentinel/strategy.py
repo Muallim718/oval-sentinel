@@ -16,6 +16,7 @@ from .movement import GroundSteering
 from .salvage import KillSalvage
 from .opener import Opener
 from .duel_commitment import DuelCommitment
+from .quiet_window import QuietWindow
 
 
 def future_circle(zone, now, seconds):
@@ -50,6 +51,7 @@ class Bot:
         self.salvage = KillSalvage(self.world, self.config)
         self.opener = Opener(self.world, self.config)
         self.commitment = DuelCommitment(self.config)
+        self.quiet_window = QuietWindow(self.config)
         self.motion = GroundSteering(self.world, self.config)
         self.cover_active = False
         self.cover_watch_goal = None
@@ -334,6 +336,7 @@ class Bot:
 
     def act(self, obs):
         self.remember(obs)
+        self.quiet_window.update(obs)
         me, now = obs["self"], obs["t"]
         self.nav.set_body(me["stats"])
         old_mode = self.mode
@@ -345,11 +348,13 @@ class Bot:
             emergency=not me["in_zone"] or
             (me["hp"] < me["max_hp"]*.23 and now-self.last_weapon_damage < .6))
         previous_commitment = self.commitment.target_id
-        repairing_in_cover = (self.recovering and self.cover_active and self.cover.sheltered and
-                              now-self.last_weapon_damage > .5)
+        repairing = self.recovering and self.quiet_window.repair(
+            obs, sheltered=self.cover_active and self.cover.sheltered and me["grounded"])
+        if repairing and self.mode == "fight":
+            self.mode, self.duel = "recover", None
         fight_obs = dict(obs, mechs=[e for e in obs["mechs"] if e["id"] in active])
         duel = self.commitment.choose(fight_obs, threats, future_circle(obs["zone"], now, 10),
-                                      self.world, sheltered=repairing_in_cover)
+                                      self.world, sheltered=repairing)
         if salvage_goal is not None:
             duel = None
         if duel is not None:
@@ -439,13 +444,19 @@ class Bot:
             # Crate farming only when quiet and close enough to collect the cube.
             targets += sorted((c for c in self.loot.get("crates") if distance(me["pos"],c["pos"]) < 110),
                               key=lambda c: distance(me["pos"],c["pos"]))
-        # Healing is already interrupted under fire. Answer with the gun briefly,
-        # preserving movement speed and energy; stop once incoming hits cease.
+        # Escape movement and attack permission are independent. Actual
+        # shelter or continuing regeneration takes priority over a viable shot.
+        repairing = self.recovering and self.quiet_window.repair(
+            obs, sheltered=self.cover_active and self.cover.sheltered and me["grounded"])
+        attack_retreat = retreat
+        if retreat and active and not repairing:
+            targets = [target for target in targets if target["kind"] == "mech"]
+            attack_retreat = False
         return_fire = now-self.last_weapon_damage < 1.0
-        aim, fire, target = self.combat.action(me, targets, retreat, obs["alive"] <= 2,
+        aim, fire, target = self.combat.action(me, targets, attack_retreat, obs["alive"] <= 2,
                                              return_fire=return_fire,
                                              forced_weapon="gun" if opening is not None else None)
-        if self.cover_active and self.cover.sheltered and self.recovering:
+        if repairing:
             # A weak target or an over-wall mortar must not restart the healing
             # clock. Trigger-off releases any already-held laser into the cover.
             aim, fire, target = None, [False, False], None
