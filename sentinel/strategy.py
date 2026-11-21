@@ -434,10 +434,12 @@ class Bot:
         gun = next((w for w in me["weapons"] if w and w["kind"] == "gun"), None)
         if gun and gun.get("reload", 0) <= 0:
             # A cooldown or a moment of misalignment is not a reload window.
-            quiet = target is None and not any(distance(me["pos"],e["pos"]) < 150 for e,c in threats)
-            action["reload"] = (gun.get("ammo", 0) <= 0 or
-                                (quiet and gun.get("ammo", 0) < gun["stats"]["mag"]*.65) or
-                                self.refit.should_reload(obs, self.cover_active and self.cover.sheltered, threats))
+            if self.refit.active:
+                partial_reload = self.refit.should_reload(obs, self.cover_active and self.cover.sheltered, threats)
+            else:
+                quiet = target is None and not any(distance(me["pos"],e["pos"]) < 150 for e,c in threats)
+                partial_reload = quiet and gun.get("ammo", 0) < gun["stats"]["mag"]*.65
+            action["reload"] = gun.get("ammo", 0) <= 0 or partial_reload
         if obs.get("offer"):
             choices = obs["offer"]["choices"]
             action["pick"] = max(range(len(choices)), key=lambda i: tuning.UPGRADE_VALUE.get(choices[i]["id"], 0))

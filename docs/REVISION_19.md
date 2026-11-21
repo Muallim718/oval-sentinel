@@ -24,11 +24,11 @@ seconds in the baseline. An incoming round from a hunter rounding a wall
 ended the refit within one observation of that hunter appearing. This model
 tests the healing and magazine tradeoff before the next engagement.
 
-At three seconds the refit had 12 rounds and the baseline had zero with
-0.45 seconds left on its reload. A separate case with a 90 HP crate gave the
+At three seconds the refit's partial reload had 0.15 seconds remaining, while
+the baseline's reload had 0.45 seconds remaining. A case with a 90 HP crate gave the
 refit only 2.5 more current HP at 11 seconds while the baseline kept the
 extra cube and lightning. Cheap rewards can be worth taking immediately.
 
-All 136 local tests passed. The official recording received 300 valid
-on-time replies with an 8.9 ms maximum. Crowded and growing-body benchmarks
-peaked at 21.37 and 20.79 ms respectively.
+All 137 local tests passed. The official recording received 300 valid
+on-time replies with an 8.5 ms maximum. Crowded and growing-body benchmarks
+peaked at 11.47 and 22.45 ms respectively.

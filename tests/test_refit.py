@@ -2,8 +2,10 @@
 import copy
 import unittest
 
-from test_bot import fixture
+from test_bot import fixture, flat_world
+from sentinel.cover import CoverPlanner
 from sentinel.refit import RefitCycle
+from sentinel.strategy import Bot
 
 
 class RefitTests(unittest.TestCase):
@@ -154,6 +156,18 @@ class RefitTests(unittest.TestCase):
         self.assertTrue(self.cycle.should_reload(self.obs, False, []))
         remembered = [(self.enemy(distance=220), .5)]
         self.assertFalse(self.cycle.should_reload(self.obs, False, remembered))
+
+    def test_bot_does_not_use_ordinary_partial_reload_during_an_exposed_refit(self):
+        bot = Bot(self.hello)
+        bot.cover = CoverPlanner(flat_world(), self.config)
+        self.me["id"], self.gun["ammo"] = 0, 3
+        self.obs["zone"].update(center=[0, 0], next_center=[0, 0], radius=400,
+                                next_radius=400, shrink_start=90, shrink_end=100)
+        self.obs["mechs"] = [dict(self.enemy(distance=205), aim=[3.14, 0], hp=1400)]
+        self.obs["events"] = [{"type": "kill", "target": 5}]
+        action = bot.act(self.obs)
+        self.assertTrue(bot.refit.active)
+        self.assertFalse(action["reload"])
 
     def test_partial_reload_never_starts_at_end_or_during_current_reload(self):
         self.gun["ammo"] = 3

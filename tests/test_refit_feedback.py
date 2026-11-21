@@ -213,7 +213,7 @@ class RefitFeedbackTests(unittest.TestCase):
                 self.assertTrue(result['crate_seen_before_kill'])
                 self.assertIsNotNone(result['actual_kill'])
                 self.assertEqual(result['at_wave']['ammo'], 12)
-                self.assertEqual(result['at_3s']['ammo'], 12)
+                self.assertLess(result['at_3s']['reload'], .25)
                 self.assertEqual(result['optional_shots'], 0)
                 self.assertFalse(any(row['kind'] == 'crate' for row in result['damage_targets']))
                 self.assertGreater(result['at_wave']['hp'], 1200)
