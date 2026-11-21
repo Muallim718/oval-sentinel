@@ -1,5 +1,24 @@
 # Validation performed
 
+## Revision 11: phase-aware roof zone control
+
+This corrects revision 10's abandoned-launch zone requirement after landing.
+It retains or repositions a supported live hold on the same roof and preserves
+physical exit ownership and weapon-pressure guards. See [the change and its
+limits](docs/REVISION_11.md).
+
+- All **141 tests passed locally**, including 24 new zone cases and one
+  additional actual-body-fit case. Seven earlier flights still pass.
+- Local official checker: **300/300 on-time**, zero errors; startup 409 ms,
+  p99 3.6 ms and maximum 9.1 ms.
+- Crowded/growing-body local host maxima: 22.83/12.87 ms, zero above 50 ms.
+- Forty quiet starts: 12 plans, maximum decision 2.91 ms and startup 489.3 ms.
+- Active roof-zone timing: 160 updates, 40 public roofs, p99 5.98 ms, maximum
+  6.65 ms, zero above 50 ms. This measures the altitude controller on the host,
+  excluding the rest of the bot and protocol I/O.
+
+Linux validation and scored comparison pending. Revision 8's 3.63 remains selected.
+
 ## Revision 10: proactive roof sanctuary
 
 Commit `7edf73c69c0661c98cc1f2fd53096af62d130bf9` passed the

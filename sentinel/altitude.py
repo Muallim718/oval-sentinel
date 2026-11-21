@@ -16,6 +16,7 @@ class RoofSanctuary:
                             for site in self.sites}
         self.search_offset = 0
         self.site = None
+        self.hold_goal = None
         self.phase = None
         self.reason = "no active roof"
         self.deadline = -1
@@ -112,9 +113,67 @@ class RoofSanctuary:
         # Half a second of crossing jet replaces v3's jetting the entire inset.
         return ((rise+1.5)/max(1, stats["max_rise_speed"])+.5)*stats["jet_drain"]+18
 
+    @staticmethod
+    def zone_margin(circle):
+        return min(12, max(.5, circle[1]*.2))
+
+    def point_in_zone(self, point, circle):
+        return distance(point, circle[0]) < circle[1]-self.zone_margin(circle)
+
     def safe_in_zone(self, site, circle):
-        return all(distance(site[key], circle[0]) < circle[1]-12
+        """Preflight requires the complete launch/entry/hold plan inside the zone."""
+        return all(self.point_in_zone(site[key], circle)
                    for key in ("launch", "landing", "hold"))
+
+    def roof_goal_valid(self, obs, goal, circle, start):
+        """A live goal can be supported without depending on the old launch site."""
+        me = obs["self"]
+        prism = self.site["prism"]
+        radius, height = me["stats"]["radius"]+.3, me["stats"]["height"]
+        if (not self.point_in_zone(goal, circle) or not self.supported(prism, goal, radius) or
+                not self.world.body_clear(goal[0], goal[1], prism.top, radius, height, 0) or
+                not self.roof_path(prism, start, goal, radius, height)):
+            return False
+        # If already outside the predicted smaller circle, moving into it must
+        # still be possible. Reject new excursions outside the CURRENT zone;
+        # existing outside distance may only decrease along the roof corridor.
+        actual = obs["zone"]
+        previous_outside = max(0, distance(start, actual["center"])-actual["radius"])
+        steps = max(1, math.ceil(distance(start, goal)/2))
+        for i in range(1, steps+1):
+            fraction = i/steps
+            xy = (start[0]+(goal[0]-start[0])*fraction, start[1]+(goal[1]-start[1])*fraction)
+            outside = max(0, distance(xy, actual["center"])-actual["radius"])
+            if outside > previous_outside+1e-6:
+                return False
+            previous_outside = outside
+        return True
+
+    def retarget_roof(self, obs, circle, start):
+        """Search at most nine anchors on this roof, never mutate cached sites."""
+        me = obs["self"]
+        z = self.site["prism"].top
+        if self.hold_goal is not None and self.roof_goal_valid(obs, self.hold_goal, circle, start):
+            return True
+        usable = max(0, circle[1]-self.zone_margin(circle))
+        center = circle[0]
+        def inward(point):
+            direction = unit(point[0]-center[0], point[1]-center[1])
+            return (center[0]+direction[0]*usable*.75,
+                    center[1]+direction[1]*usable*.75, z)
+        anchors = [self.hold_goal, (*center, z), (*me["pos"][:2], z),
+                   inward(start), inward(self.site["hold"])]
+        anchors += [(center[0]+dx*usable*.5, center[1]+dy*usable*.5, z)
+                    for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1))]
+        for goal in anchors[:9]:
+            if goal is not None and self.roof_goal_valid(obs, goal, circle, start):
+                self.hold_goal = tuple(goal)
+                self.reason = "keep a supported anchor on the safe part of this roof"
+                if self.phase == "hold" and distance(me["pos"], goal) >= 1.5:
+                    self.phase = "settle"
+                    self.deadline = obs["t"]+max(10, distance(me["pos"], goal)/me["stats"]["walk_speed"]*1.6+4)
+                return True
+        return False
 
     def valid_site(self, site, me):
         stats = me["stats"]
@@ -136,6 +195,7 @@ class RoofSanctuary:
         if failed and self.site:
             self.failed[id(self.site)] = now+35
         self.site, self.phase = None, None
+        self.hold_goal = None
         self.reason = reason
         self.next_search = now+8
         self.exit_goal = None
@@ -240,9 +300,13 @@ class RoofSanctuary:
             if self.site is None:
                 return None
             self.phase, self.deadline = "approach", now+12
+            self.hold_goal = tuple(self.site["hold"])
             self.reason = "healthy early launch before pressure"
         site = self.site
-        launch, entry, hold = site["launch"], site["landing"], site["hold"]
+        if self.hold_goal is None:
+            self.hold_goal = tuple(site["hold"])
+        launch, entry, hold = site["launch"], site["landing"], self.hold_goal
+        was_holding = self.phase == "hold"
         if self.phase == "approach":
             if (not self.safe_in_zone(site, circle) or not self.valid_site(site, me) or
                     now > self.deadline or now-self.last_hit < 5 or
@@ -270,21 +334,36 @@ class RoofSanctuary:
                 self.best_height, self.last_rise = p[2], now
             if me["energy"] < 10 or (self.phase == "ascend" and now-self.last_rise > 1.3):
                 self.begin_exit(obs, circle, "flight stalled or emergency reserve reached")
-        if self.phase != "exit" and not self.safe_in_zone(site, circle):
-            self.begin_exit(obs, circle, "leave early for the next safe circle")
-        if self.phase not in ("approach", "exit") and not self.valid_site(site, me):
+        landed_motion = (self.phase in ("cross", "land", "settle", "hold") and me["grounded"] and
+                         abs(p[2]-entry[2]) < 1.5 and site["prism"].contains(*p[:2]))
+        if was_holding or landed_motion:
+            charging_lane = any(enemy.get("kind") == "mech" and enemy.get("charging") and
+                                distance(p, enemy["pos"]) <= self.config["weapons"]["laser"]["range"] and
+                                firing_lane(self.world, self.config, p, me, enemy)[0]
+                                for enemy in obs["mechs"])
+            supported_here = (me["grounded"] and abs(p[2]-entry[2]) < 1.5 and
+                              self.supported(site["prism"], p, stats["radius"]+.3) and
+                              self.world.body_clear(*p, stats["radius"]+.3, stats["height"], 0))
+            if was_holding and not supported_here:
+                self.begin_exit(obs, circle, "live local body support invalidated refuge")
+            elif weapon_hit or charging_lane:
+                self.begin_exit(obs, circle, "leave a roof under actual weapon pressure")
+        if self.phase not in ("approach", "exit"):
+            on_roof = (me["grounded"] and abs(p[2]-entry[2]) < 1.5 and
+                       site["prism"].contains(*p[:2]))
+            if self.phase in ("settle", "hold") or on_roof:
+                viable = self.retarget_roof(obs, circle, p)
+            else:
+                viable = self.point_in_zone(entry, circle) and self.retarget_roof(obs, circle, entry)
+            if not viable:
+                self.begin_exit(obs, circle, "no supported roof corridor remains in the safe circle")
+            hold = self.hold_goal
+        if self.phase in ("ascend", "cross", "land") and not on_roof and not self.valid_site(site, me):
             self.begin_exit(obs, circle, "changed body invalidated the flight or roof corridor")
         if self.phase in ("settle", "hold") and any(
                 enemy["pos"][2] >= entry[2]-5 and distance(p, enemy["pos"]) < 65
                 for enemy, _ in threats):
             self.begin_exit(obs, circle, "roof occupied by an elevated enemy")
-        if self.phase == "hold":
-            charging_lane = any(enemy.get("kind") == "mech" and enemy.get("charging") and
-                                distance(p, enemy["pos"]) <= self.config["weapons"]["laser"]["range"] and
-                                firing_lane(self.world, self.config, p, me, enemy)[0]
-                                for enemy in obs["mechs"])
-            if weapon_hit or charging_lane:
-                self.begin_exit(obs, circle, "leave a roof under actual weapon pressure")
         if now > self.deadline and self.phase not in ("hold", "exit"):
             self.begin_exit(obs, circle, "flight phase timed out")
         if self.phase == "ascend":
@@ -322,7 +401,8 @@ class RoofSanctuary:
             else:
                 return {"move": self._move_to(me, hold), "boost": False, "jump": False}
         if self.phase == "hold":
-            if not self.valid_site(site, me) or p[2] < entry[2]-3 or not me["grounded"]:
+            if (p[2] < entry[2]-3 or not me["grounded"] or
+                    not self.world.body_clear(*p, stats["radius"]+.3, stats["height"], 0)):
                 self.begin_exit(obs, circle, "live body or support invalidated refuge")
             else:
                 move = [0, 0] if distance(p, hold) < 1.5 else self._move_to(me, hold)

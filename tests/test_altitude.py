@@ -68,10 +68,21 @@ class AltitudeCoreTests(unittest.TestCase):
         self.roof.sites = [self.site]
         self.assertIsNone(self.roof.choose(self.obs, [], self.circle))
 
-    def test_live_growth_on_held_roof_keeps_exit_ownership(self):
+    def test_live_growth_on_wide_held_roof_ignores_obsolete_narrow_entry(self):
         self.roof.site, self.roof.phase, self.roof.deadline = self.site, "hold", float("inf")
         self.me["pos"] = list(self.site["hold"])
         self.me["stats"]["radius"] = 9
+        control = self.roof.update(self.obs, [], self.circle)
+        self.assertIsNotNone(control)
+        self.assertEqual(self.roof.phase, "hold")
+        self.assertFalse(self.roof.valid_site(self.site, self.me))
+        self.assertTrue(self.roof.supported(self.site["prism"], self.me["pos"], 9.3))
+        self.assertIsNotNone(self.roof.site)
+
+    def test_body_that_no_longer_fits_actual_held_roof_keeps_exit_ownership(self):
+        self.roof.site, self.roof.phase, self.roof.deadline = self.site, "hold", float("inf")
+        self.me["pos"] = list(self.site["hold"])
+        self.me["stats"]["radius"] = 29
         control = self.roof.update(self.obs, [], self.circle)
         self.assertIsNotNone(control)
         self.assertEqual(self.roof.phase, "exit")

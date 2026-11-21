@@ -19,10 +19,12 @@ This is below the leading teams; the site provides no individual match breakdown
 | [8](docs/REVISION_8.md) | Committed cover and predictive steering | **3.63** |
 | [9](docs/REVISION_9.md) | Readiness and protected resource acquisition | 3.58 |
 | [10](docs/REVISION_10.md) | Proactive rooftop sanctuary | 3.40 |
+| [11](docs/REVISION_11.md) | Stay on safe roof space through zone movement | Pending |
 
-The rooftop experiment is undergoing a correction: its original zone check can
+The rooftop experiment now includes a correction: its original zone check can
 abandon a safe roof because the old ground launch point is outside the future
-circle. Experimental runtime is currently on `main`; use the `score-3.63` tag
+circle. The correction keeps or repositions a supported hold on the same roof.
+Experimental runtime is currently on `main`; use the `score-3.63` tag
 for the best scored controller until the comparison is complete.
 
 **Linux sandbox verified:** revision 10 passed 116 behavioral tests and the
@@ -52,7 +54,8 @@ python3 tools/verify.py
 ```
 
 That runs behavioral tests, the official 300-observation conformance check,
-crowded-input timing, and 40 fresh quiet-map starts. It fails if a test or the official check fails.
+crowded-input timing, 40 fresh quiet-map starts, and 160 active roof-zone updates.
+It fails if a test or the official check fails.
 The benchmark reports timing; its synthetic inputs are not scored games.
 
 **With Docker running**, add `--docker` to build for `linux/amd64` and run the

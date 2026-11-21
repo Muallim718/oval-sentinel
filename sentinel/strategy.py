@@ -344,7 +344,7 @@ class Bot:
                 jump = False
             else:
                 self.goal = tuple((self.altitude.exit_goal if self.altitude.phase == "exit" else
-                                   self.altitude.site["hold"])[:2])
+                                   (self.altitude.hold_goal or self.altitude.site["hold"]))[:2])
                 self.goal_kind = "roof "+str(self.altitude.phase)
                 move, boost, jump = altitude["move"], altitude["boost"], altitude["jump"]
             healthy_hold = (self.altitude.phase == "hold" and not self.recovering and
@@ -361,7 +361,7 @@ class Bot:
                       "jump": bool(jump), "aim": aim, "fire": fire}
             self.shared_finish_actions(obs, action, target, threats)
             if self.debug:
-                target_point = self.altitude.site["hold"]
+                target_point = self.altitude.hold_goal or self.altitude.site["hold"]
                 action["debug"] = {"label": "roof/"+str(self.altitude.phase),
                                    "points": [{"at": list(target_point), "color": "#40c0ff"}]}
             return action
