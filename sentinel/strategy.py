@@ -15,6 +15,7 @@ from .cover import CoverPlanner
 from .movement import GroundSteering
 from .salvage import KillSalvage
 from .opener import Opener
+from .sound import SoundScout
 
 
 def future_circle(zone, now, seconds):
@@ -48,6 +49,7 @@ class Bot:
         self.cover = CoverPlanner(self.world, self.config)
         self.salvage = KillSalvage(self.world, self.config)
         self.opener = Opener(self.world, self.config)
+        self.sound = SoundScout(self.config)
         self.motion = GroundSteering(self.world, self.config)
         self.cover_active = False
         self.cover_watch_goal = None
@@ -306,6 +308,7 @@ class Bot:
 
     def act(self, obs):
         self.remember(obs)
+        self.sound.update(obs)
         me, now = obs["self"], obs["t"]
         self.nav.set_body(me["stats"])
         old_mode = self.mode
@@ -412,7 +415,9 @@ class Bot:
             elif opening is not None:
                 aim = aim_at(me["pos"], opening.goal)
             else:
-                scan = self.opener.scan_yaw(obs, threats)
+                scan = self.sound.heading(now)
+                if scan is None:
+                    scan = self.opener.scan_yaw(obs, threats)
                 aim = [scan if scan is not None else (self.phase+now*0.7+math.pi)%math.tau-math.pi, 0.0]
             damaged = [e for e in obs["events"] if e["type"] == "damaged" and e.get("bearing") is not None]
             if damaged:
