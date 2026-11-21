@@ -1,9 +1,7 @@
-"""Use an arm-gun reload to collect nearby real equipment without ceasing fire.
+"""Collect nearby equipment on a short route while preserving gun control.
 
-Unlike the old readiness experiment, this owns only a short pickup route. It
-does not change duel preference, aim, triggers, health modes or post-equip play.
-An exposed route must fit the observable own-gun reload window; a fully covered
-route can also run while recovering. Arrival and equip time both enter risk.
+Choose a reload break, a covered approach, or a bounded early duel detour.
+Arrival and actual initial equip time both enter the damage budget.
 """
 from dataclasses import dataclass
 import math
@@ -29,6 +27,7 @@ class ArmMission:
 
 class ReloadArm:
     START_UNTIL = 90.0
+    DUEL_UNTIL = 150.0
     MAX_SECONDS = 3.0
     SEARCH_SECONDS = .004
     MAX_CANDIDATES = 6
@@ -150,7 +149,18 @@ class ReloadArm:
                         break
         return damage
 
-    def _admit(self, obs, pickup, threats, circle, reload_window, deadline, continuing=False):
+    @staticmethod
+    def _quick_duel_route(me, pickup, eta, goal, enemies, risk):
+        if pickup["kind"] not in ("laser", "lightning") or eta > 1.25 or len(enemies) != 1:
+            return False
+        enemy = next(iter(enemies.values()))
+        current_distance = distance(me["pos"], enemy["pos"])
+        return (enemy.get("weapons") == ["gun"] and enemy.get("hp", 1400) > 240 and
+                current_distance >= 52 and distance(goal, enemy["pos"]) >= current_distance-2.5 and
+                risk <= me["hp"]*.27)
+
+    def _admit(self, obs, pickup, threats, circle, reload_window, deadline,
+               continuing=False, duel_route=False, duel_only=False):
         me = obs["self"]
         travel = self._travel(me, pickup, circle)
         if travel is None:
@@ -200,7 +210,9 @@ class ReloadArm:
             if "lightning" in kinds and d-self.config["mech"]["boost_speed"]*window < self.config["weapons"]["lightning"]["range"]:
                 return None
         protected = not exposed
-        if not protected and (reload_window <= 0 or eta > reload_window+.1) and not continuing:
+        needs_duel_route = not continuing and (duel_only or
+                           (not protected and (reload_window <= 0 or eta > reload_window+.1)))
+        if needs_duel_route and not duel_route:
             return None
         for npc in (e for e in obs.get("mechs", ()) if e.get("kind") == "npc"):
             if any(distance(point, npc["pos"]) < 90 and self.world.line_clear(
@@ -211,7 +223,9 @@ class ReloadArm:
         risk *= 1-me["stats"].get("armor", 0)
         if me["hp"]-risk < max(180, me["max_hp"]*.20):
             return None
-        return eta, goal, protected, equip
+        if needs_duel_route and not self._quick_duel_route(me, pickup, eta, goal, enemies, risk):
+            return None
+        return eta, goal, protected, equip, needs_duel_route
 
     def choose(self, obs, threats, circle, recovering=False):
         self.update(obs)
@@ -229,10 +243,13 @@ class ReloadArm:
             self.cancel("no arm gun reload opportunity")
             return None
         reload_window = gun.get("reload", 0) or (gun["stats"]["reload"] if gun.get("ammo", 0) == 0 else 0)
+        duel_route = (now <= self.DUEL_UNTIL and obs.get("alive", 16) >= 9 and not recovering and
+                      me["hp"] >= me["max_hp"]*.78)
         deadline = time.perf_counter()+self.SEARCH_SECONDS
         if self.current:
-            if now > self.current["until"] or self.current["id"] not in self.pickups:
-                self.cancel("short pickup commitment expired or disappeared", now, True)
+            if (now > self.current["until"] or self.current["id"] not in self.pickups or
+                    (self.current.get("duel_route") and me["hp"] < me["max_hp"]*.65)):
+                self.cancel("short equipment commitment expired or became unsafe", now, True)
                 return None
             pickup = self.pickups[self.current["id"]][1]
             approved = self._admit(obs, pickup, threats, circle, reload_window, deadline, continuing=True)
@@ -240,7 +257,7 @@ class ReloadArm:
                 self.cancel("equipment corridor or damage budget changed", now, True)
                 return None
         else:
-            if now > self.START_UNTIL:
+            if now > self.START_UNTIL and not duel_route:
                 return None
             candidates = sorted((p for p in obs.get("pickups", ()) if p["kind"] in ("laser", "lightning", "mortar")
                                  and p["id"] not in self.rejected),
@@ -249,16 +266,21 @@ class ReloadArm:
             for pickup in candidates[:self.MAX_CANDIDATES]:
                 if time.perf_counter() >= deadline:
                     break
-                approved = self._admit(obs, pickup, threats, circle, reload_window, deadline)
+                approved = self._admit(obs, pickup, threats, circle, reload_window, deadline,
+                                       duel_route=duel_route, duel_only=now > self.START_UNTIL)
                 if approved:
                     break
             if approved is None:
                 self.reason = "no viable short reload or covered pickup"
                 return None
-            eta, _, protected, _ = approved
-            until = now+self.MAX_SECONDS if protected else now+min(self.MAX_SECONDS, reload_window+.25)
-            self.current = {"id": pickup["id"], "until": until, "position": tuple(me["pos"]), "progress_at": now}
-        eta, goal, protected, equip = approved
+            eta, _, protected, _, dash = approved
+            if dash:
+                until = now+min(1.6, max(.65, eta*1.2+.25))
+            else:
+                until = now+self.MAX_SECONDS if protected else now+min(self.MAX_SECONDS, reload_window+.25)
+            self.current = {"id": pickup["id"], "until": until, "position": tuple(me["pos"]),
+                            "progress_at": now, "duel_route": dash}
+        eta, goal, protected, equip, _ = approved
         if distance(me["pos"], self.current["position"]) >= 1:
             self.current["position"], self.current["progress_at"] = tuple(me["pos"]), now
         elif eta > 0 and now-self.current["progress_at"] > 1:
@@ -266,7 +288,8 @@ class ReloadArm:
             return None
         take = pickup["id"] if eta == 0 and abs(me["pos"][2]-pickup["pos"][2]) <= 4 else None
         self.state = "take" if take is not None else "approach"
-        self.reason = "short covered pickup" if protected else "collect equipment during arm-gun reload"
+        self.reason = ("short equipment detour while firing" if self.current["duel_route"] else
+                       "short covered pickup" if protected else "collect equipment during arm-gun reload")
         self.ready_at = now+eta+equip
         self.plan = ArmMission(goal, goal, pickup["kind"], pickup["id"], take, eta,
                                self.ready_at, protected, move=(0., 0.) if take is not None else None)
