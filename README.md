@@ -26,7 +26,9 @@ submission. [Duel design and practice result](docs/REVISION_20.md)
 | [14](docs/REVISION_14.md) | Finish weakened opponents within the incoming damage budget | 3.58 |
 | [15](docs/REVISION_15.md) | Prepare laser shots behind cover and return after release | 3.58 |
 | [16](docs/REVISION_16.md) | Acquire early weapons and cubes through dedicated missions | **3.75** |
+| [17](docs/REVISION_17.md) | Acquire contacts through sound and aim at exposed surfaces | 3.96 |
 | [20](docs/REVISION_20.md) | Sustain isolated duels through the first waves | **4.04** |
+| [23](docs/REVISION_23.md) | Repair and rearm during the gap after a kill | 4.00 |
 
 **The default runtime matches the 4.04 controller.** The exact source and
 tests for earlier revisions remain public in their tags and experiment branches.
