@@ -1,9 +1,10 @@
 # Revision 49: acquire threats before taking more rear damage
 
-This version brings the sound and exposed-body decisions from revision 17
-and the damage-bearing memory from revision 30 to the selected 4.31
-controller. The active-attacker filter, movement, and repair checks still
-choose when to engage.
+This approach first combined sound and exposed-body decisions from revision
+17 with damage-bearing memory from revision 30 on the 4.31 controller.
+Revision 57 keeps the same perception changes on the scored 4.50 early
+equipment and upgrade controller. The active-attacker filter, movement,
+and repair checks still choose when to engage.
 
 An anonymous sound can turn the torso during a quiet scan. A real, attributed
 hit can hold its bearing for up to 1.1 seconds when there is no workable fire
