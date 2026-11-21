@@ -97,6 +97,12 @@ rear-armor damage, even while its legs move away.
 
 ## Loot and upgrades
 
+After a confirmed kill the bot briefly associates observed cube IDs with the
+fight. It can collect them while recovering when a direct route beats the
+nearest known opponent and the estimated damage leaves a useful health reserve.
+It checks the predicted zone and whether the body will fit after the cubes make
+it bigger. It reevaluates the route every tick. [Kill reward examples](REVISION_13.md)
+
 Visible cubes and nearby crates are useful only when collection is reasonably
 safe. The bot rejects loot on a roof when it cannot simply walk to it. Weapons
 must be within both the horizontal pickup radius and the fixed 4-meter vertical

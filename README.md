@@ -7,10 +7,11 @@ library only. The `Dockerfile` is already at the repository root.
 
 Public repository: [Muallim718/oval-sentinel](https://github.com/Muallim718/oval-sentinel)
 
-**Best scored entry: 3.63 placement points**, up from 3.25 (+0.38), with the
-[ground-cover and movement redesign](docs/REVISION_8.md). Receipt `BB-1461B1AF`
-scored commit `9bf75d70a8d209a1dd8ea4f67415ee93a9cbf7f0` on 2026-11-21 at
-11:27 AM EST. It remains selected and is preserved by the `score-3.63` tag.
+**Best scored entry: 3.73 placement points**, up from 3.63, by collecting
+confirmed kill rewards when the route and damage budget allow it.
+Receipt `BB-3EEC55BC` scored commit `db1cc9a23c54d15c13c3331df4587f0d1bafd3c9`
+on 2026-11-21 at 3:00 PM EST. The site selected it automatically. The
+`score-3.73` tag preserves the scored commit. [Kill-salvage design and results](docs/REVISION_13.md)
 This is below the leading teams; the site provides no individual match breakdown.
 
 | Version | Change | Practice score |
@@ -21,17 +22,16 @@ This is below the leading teams; the site provides no individual match breakdown
 | [10](docs/REVISION_10.md) | Proactive rooftop sanctuary | 3.40 |
 | [11](docs/REVISION_11.md) | Stay on safe roof space through zone movement | 3.31 |
 | [12](docs/REVISION_12.md) | Incoming-shot prediction, spacing, and firing windows | 3.38 |
+| [13](docs/REVISION_13.md) | Collect confirmed kill rewards before the next hunter | **3.73** |
 
-**The default runtime matches the 3.63 controller exactly.** The resource,
+**The default runtime matches the 3.73 controller.** Earlier readiness,
 rooftop, and duel experiments scored lower. The complete roof
 candidate, including its 141 tests and timing tools, remains public on
 [`experiment/roof-zone`](https://github.com/Muallim718/oval-sentinel/tree/experiment/roof-zone).
 
-**Linux sandbox verified:** the retained revision 8 passed 80 behavioral tests
-and the official restricted-container check, with 300/300 on-time answers and a
-14.0 ms maximum response. Both roof experiments also passed their larger test
-suites and container checks before submission. See [VALIDATION.md](VALIDATION.md)
-for exact runs, performance results, and limits.
+**Linux sandbox verified:** the selected revision 13 passed 98 behavioral tests
+and the official restricted-container check, with 300/300 on-time replies and a
+14.1 ms maximum response. [Validation and experimental results](VALIDATION.md)
 
 **Start here:** run the checks below, read [the strategy](docs/STRATEGY.md), and
 consult the [full submission history](docs/PRACTICE_LOG.csv). Experiments that

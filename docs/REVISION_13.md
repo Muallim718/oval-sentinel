@@ -33,3 +33,15 @@ The canonical local checks passed all 98 tests, including 13 policy cases and
 five physical feedback cases. The official checker returned 300/300 on-time
 answers with a maximum of 8.7 ms. Crowded and growing-body synthetic host
 timing peaked at 21.31 and 20.88 ms, respectively.
+
+Commit `db1cc9a23c54d15c13c3331df4587f0d1bafd3c9` passed all 98 Linux tests,
+the pinned image build, and 300/300 on-time restricted-container replies.
+Container p99 was 5.4 ms and the maximum was 14.1 ms. Linux host crowded and
+growing-body maxima were 15.97 and 27.35 ms. The submitted tree was 2,290,964
+bytes. [Linux check results](https://github.com/Muallim718/oval-sentinel/actions/runs/44943729174)
+
+The practice service accepted the exact commit at 3:00 PM EST on November 21,
+2026, under receipt `BB-3EEC55BC`. It scored **3.73**, 0.10 above the prior
+3.63 best. The site selected this submission and the default branch adopted
+the same runtime. The service exposes the aggregate score alone, so it does
+not show how often a successful pickup changed placement.

@@ -1,17 +1,13 @@
 # Validation performed
 
-## Current default: restored 3.63 controller
+## Current default, revision 13
 
-The runtime, tests, ground feedback tool, and verification command on `main`
-match the scored `9bf75d70a8d209a1dd8ea4f67415ee93a9cbf7f0` exactly. The
-readiness and rooftop experiments remain on public branches with their scores
-and evidence below. They are not part of the default bot.
-
-After restoration, all **80 tests passed locally**; the official checker
-returned **300/300 on-time answers**, zero errors, startup 231 ms, p99 3.5 ms,
-maximum 9.3 ms. Crowded/growing-body host maxima were 21.38/22.00 ms, with no
-decisions above 50 ms. The unchanged runtime's original Linux sandbox check is
-linked in the revision 8 section; GitHub Actions also repeats it for this push.
+The selected **3.73** runtime adds confirmed kill reward collection to revision
+8's **3.63** movement and combat. All 98 tests passed locally and on Linux.
+The restricted container answered 300/300 observations on time, with p99 5.4 ms
+and a 14.1 ms maximum. The controlled five-cube feedback case improved remaining
+HP and damage, while the two-cube case spent extra HP to secure the upgrade.
+[Design, exact results, and limits](docs/REVISION_13.md)
 
 ## Revision 12: projectile-aware duels
 
