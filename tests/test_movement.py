@@ -10,6 +10,7 @@ from test_bot import fixture, flat_world, rectangle
 from sentinel.combat import Combat
 from sentinel.cover import CoverPlanner
 from sentinel.movement import GroundSteering
+from sentinel.reload_arm import ReloadArm
 from sentinel.navigation import Navigator
 from sentinel.strategy import Bot
 
@@ -96,6 +97,7 @@ class MovementTests(unittest.TestCase):
         bot.combat = Combat(self.world, self.hello["config"])
         bot.cover = CoverPlanner(self.world, self.hello["config"])
         bot.motion = GroundSteering(self.world, self.hello["config"])
+        bot.reload_arm = ReloadArm(self.world, self.hello["config"])
         self.obs["mechs"] = [self.enemy]
         return bot
 
