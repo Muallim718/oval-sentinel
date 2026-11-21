@@ -3,6 +3,12 @@
 Baseline: revision 8, **3.63** placement points. This changes combat readiness and
 safe free-resource acquisition together; the cover/motion redesign is retained.
 
+**Outcome: 3.58**, 0.05 below the 3.63 baseline in this run. The policy was not
+adopted; the default runtime was restored to revision 8. The complete tested
+candidate remains on the public
+[`experiment/readiness`](https://github.com/Muallim718/oval-sentinel/tree/experiment/readiness)
+branch at commit `3a514776071bfe9bfd1972f82593dc42afa9e95e`.
+
 ## Evidence
 
 On the kit's 300 recorded observations, revision 8 selected a weapon goal on 31
@@ -82,3 +88,18 @@ unseen enemies, future movement, and visibility between samples remain uncertain
 The gun-only reactive lab cannot model secondary acquisition/combat, so its old
 results are not used to claim a revision 9 score gain. Scored practice decides
 whether the new readiness/resource policy is retained.
+
+## Linux validation and scored entry
+
+Commit `3a514776071bfe9bfd1972f82593dc42afa9e95e` passed the
+[Linux workflow](https://github.com/Muallim718/oval-sentinel/actions/runs/44927049932):
+109 tests, the pinned image build, and 300/300 on-time restricted-container
+responses, p99 5.1 ms and maximum 9.9 ms. The Linux host crowded and growing-body
+benchmarks peaked at 26.52 and 16.02 ms, with no decisions above 50 ms. The
+committed tree was 2,265,033 bytes, below 20 MB.
+
+Receipt `BB-F0C28E64` was submitted at 11:55 AM EST on 2026-11-21 and scored
+**3.58**, implying an average placement of approximately 12.42. The site kept
+3.63 selected. This small aggregate decrease does not establish statistical
+significance or show which component changed the outcome. Runtime sources on
+`main` were compared with the 3.63 commit and match exactly after restoration.

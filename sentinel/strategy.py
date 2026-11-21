@@ -13,7 +13,6 @@ from .navigation import Navigator
 from .memory import LootMemory
 from .cover import CoverPlanner
 from .movement import GroundSteering
-from .provisioning import Provisioner
 
 
 def future_circle(zone, now, seconds):
@@ -46,8 +45,6 @@ class Bot:
         self.combat = Combat(self.world, self.config)
         self.cover = CoverPlanner(self.world, self.config)
         self.motion = GroundSteering(self.world, self.config)
-        self.provision = Provisioner(self.world, self.config)
-        self.provision_active = False
         self.cover_active = False
         self.cover_watch_goal = None
         self.cover_watch_position = None
@@ -301,21 +298,6 @@ class Bot:
         old_mode = self.mode
         self.select_mode(obs)
         threats = sorted(self.threats(now), key=lambda ec: distance(me["pos"],ec[0]["pos"]))
-        provision_plan = self.provision.choose(obs, self.loot, threats, self.shelter_circle(obs),
-                                                recovering=self.recovering)
-        # Readiness is independent of pickup memory. A gun-only mech still shoots
-        # defensively and pursues ordinary risk-scored goals, but does not rush
-        # an armed equal-HP opponent at the old 65m duel spacing.
-        if self.mode == "fight" and self.provision.defer_duel(obs, self.duel):
-            selected_weapon = (self.goal_kind == "weapon" and
-                               self.provision.selected_weapon_objective(
-                                   obs, self.loot, self.shelter_circle(obs), self.objective, self.goal))
-            quiet_healthy = (not self.recovering and me["hp"] >= me["max_hp"]*.90 and
-                             now-self.last_weapon_damage >= 1 and
-                             all(distance(me["pos"], e["pos"]) >= 80 for e, _ in threats))
-            # A healthy lone-opponent arming mission stays under ordinary goal
-            # risk scoring. Readiness alone must not replace it with camping.
-            self.mode, self.duel = ("arm" if selected_weapon and quiet_healthy else "evade"), None
         cover_goal = None
         had_cover = self.cover_active
         if self.recovering or self.mode == "evade":
@@ -348,31 +330,8 @@ class Bot:
         elif had_cover:
             self.goal = None
             self.next_goal = -1
-        had_provision = self.provision_active
-        current_circle = self.shelter_circle(obs)
-        urgent_rotation = (not me["in_zone"] or
-                           distance(me["pos"], current_circle[0]) >=
-                           current_circle[1]-me["stats"]["radius"]-5)
-        urgent_damage = now-self.last_weapon_damage < 1
-        critical_finish = (obs["alive"] <= 2 or
-                           (self.mode == "fight" and self.duel is not None and
-                            self.duel.get("hp", 1400) < 170 and
-                            distance(me["pos"], self.duel["pos"]) <= 28))
-        # Free collection may extend a held refuge along its certified protected
-        # corridor. It never interrupts a shelter approach, escape, or a finish.
-        self.provision_active = bool(provision_plan and not urgent_rotation and
-                                     not urgent_damage and not critical_finish and
-                                     (not self.cover_active or self.cover.state == "holding"))
-        if self.provision_active:
-            self.goal, self.goal_kind = provision_plan.goal, provision_plan.kind
-            self.objective = None
-            self.next_goal = now+tuning.GOAL_INTERVAL
-            self.jet_until = -1
-        elif had_provision and not self.cover_active:
-            self.goal = None
-            self.next_goal = -1
         retreat = self.recovering and self.mode != "fight"
-        if not self.cover_active and not self.provision_active and (self.goal is None or old_mode != self.mode or
+        if not self.cover_active and (self.goal is None or old_mode != self.mode or
                                       now >= self.next_goal or not me["in_zone"]):
             self.goal, self.goal_kind, self.circle = self.choose_goal(obs, retreat, threats)
             self.next_goal = now+tuning.GOAL_INTERVAL
@@ -390,8 +349,7 @@ class Bot:
         return_fire = now-self.last_weapon_damage < 1.0
         aim, fire, target = self.combat.action(me, targets, retreat, obs["alive"] <= 2,
                                              return_fire=return_fire)
-        if self.recovering and (self.provision_active or
-                                (self.cover_active and self.cover.sheltered)):
+        if self.cover_active and self.cover.sheltered and self.recovering:
             # A weak target or an over-wall mortar must not restart the healing
             # clock. Trigger-off releases any already-held laser into the cover.
             aim, fire, target = None, [False, False], None

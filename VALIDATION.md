@@ -1,5 +1,39 @@
 # Validation performed
 
+## Revision 9: readiness and secured resource acquisition
+
+**Experimental, not the default:** scored **3.58**, 0.05 below revision 8's
+3.63. Revision 8 remained selected, and its runtime was restored on `main`.
+
+Commit `3a514776071bfe9bfd1972f82593dc42afa9e95e` passed the
+[Linux workflow](https://github.com/Muallim718/oval-sentinel/actions/runs/44927049932).
+The revision adds explicit combat readiness, preserves healthy accepted arming
+missions, and permits free nearby loot along a rechecked protected corridor.
+Revision 8's 3.63 controller is preserved by the public `score-3.63` tag.
+
+- All 109 behavioral tests passed locally and on Linux: the previous 80,
+  15 provisioning tests, 13 independent readiness tests, and one coupled
+  physical acquisition test.
+- Local official checker: 300/300 on-time answers, maximum 6.0 ms.
+- Restricted-container official checker: 300/300 on-time answers, zero misses;
+  p50 1.9 ms, p90 2.5 ms, p99 5.1 ms, maximum 9.9 ms on that runner.
+- Synthetic crowded-input benchmark on the Linux host: maximum 26.52 ms;
+  growing-body variant: maximum 16.02 ms. No decisions exceeded 50 ms.
+- Committed source: 53 files, 2,265,033 bytes, below 20 MB.
+- Recorded posture audit: 30 gun-only `fight/weapon` frames become `arm/weapon`;
+  all 31 weapon goals and 221 cover goals remain. Inventory is recorded, so no
+  acquisition or score improvement can be inferred from those output counts.
+- In a limited independent 20 Hz feedback test, the hurt mech takes a laser
+  20.4 m along a protected corridor after 1.3 s, within 2.95 m; HP rises from
+  700 to 758.5, with no offensive fire. Secondary combat is not modeled.
+
+Receipt `BB-F0C28E64` was submitted on 2026-11-21 at 11:55 AM EST after these
+checks and scored **3.58**, implying an average placement of approximately 12.42.
+The small difference does not establish statistical significance, and no match
+breakdown was exposed. The complete candidate remains public on
+`experiment/readiness`. After restoration, runtime sources were compared against
+`9bf75d70a8d209a1dd8ea4f67415ee93a9cbf7f0` and match exactly.
+
 ## Revision 8: cover and motion redesign
 
 **Retained:** scored **3.63**, up 0.38 displayed points from revision 7's 3.25.

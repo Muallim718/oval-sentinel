@@ -7,9 +7,10 @@ library only. The `Dockerfile` is already at the repository root.
 
 Public repository: https://github.com/Muallim718/oval-sentinel
 
-**Revision 9 candidate:** combat readiness plus protected free-resource routes,
-on top of the 3.63 controller. [Evidence, behavior, and tests](docs/REVISION_9.md)
-are documented. The 3.63 entry remains selected while this candidate is tested.
+**Revision 9 experiment: 3.58**, below the 3.63 best. The readiness/resource
+policy was not adopted, and the default runtime matches the 3.63 controller.
+[Evidence and result](docs/REVISION_9.md) are recorded; the full experiment is
+public on [`experiment/readiness`](https://github.com/Muallim718/oval-sentinel/tree/experiment/readiness).
 
 **Revision 8: 3.63 placement points**, up from 3.25 (+0.38). The ground-cover and
 motion-controller redesign is retained. It commits to shelter, brakes and holds
@@ -117,7 +118,6 @@ Think of each decision as five questions:
 | `sentinel/memory.py` | Previously observed loot and stale-item removal. |
 | `sentinel/cover.py` | Wall-side shelters, body-wide firing lanes, commitment, and rejection. |
 | `sentinel/movement.py` | Acceleration-aware command rollouts, braking, exposure, and dodging. |
-| `sentinel/provisioning.py` | Protected free-loot corridors and first-equip readiness. |
 | `sentinel/navigation.py` | A* routes around buildings; searches can continue across decisions. |
 | `sentinel/geometry.py` | Terrain heights, walls, courtyards, bridges, and shot obstruction. |
 | `sentinel/combat.py` | Bullet leading, mortar arcs, laser charging, and lightning checks. |
@@ -126,7 +126,7 @@ Think of each decision as five questions:
 | `tools/verify.py` | The single verification command. |
 | `tools/benchmark.py` | Recorded and synthetic decision latency checks. |
 | `tools/diagnose.py` | Policy-output audit of the kit recording. |
-| `tools/audit_missions.py` | Compare arming missions with combat posture on the fixed recording. |
+| `tools/audit_missions.py` | Compare arming missions and combat posture on the fixed recording. |
 | `tools/ground_lab.py` | Optional reactive gun stress model; not the server or a score predictor. |
 | `docs/protocol.md` | Official rules and message specification. |
 
