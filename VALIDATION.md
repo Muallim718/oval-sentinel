@@ -1,6 +1,14 @@
 # Validation performed
 
-## Current default, revision 13
+## Current default, revision 16
+
+The selected **3.75** controller gains early weapons and cubes through checked
+missions and returns to the 3.73 policy under pressure. All 118 tests passed
+locally and on Linux. The restricted container answered 300/300 observations
+on time, with p99 13.1 ms and a 19.1 ms maximum.
+[Opening design, physical cases, and scored result](docs/REVISION_16.md)
+
+## Revision 13: verified kill rewards
 
 The selected **3.73** runtime adds confirmed kill reward collection to revision
 8's **3.63** movement and combat. All 98 tests passed locally and on Linux.

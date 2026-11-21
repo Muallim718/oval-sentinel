@@ -7,11 +7,11 @@ library only. The `Dockerfile` is already at the repository root.
 
 Public repository: [Muallim718/oval-sentinel](https://github.com/Muallim718/oval-sentinel)
 
-**Best scored entry: 3.73 placement points**, up from 3.63, by collecting
-confirmed kill rewards when the route and damage budget allow it.
-Receipt `BB-3EEC55BC` scored commit `db1cc9a23c54d15c13c3331df4587f0d1bafd3c9`
-on 2026-11-21 at 3:00 PM EST. The site selected it automatically. The
-`score-3.73` tag preserves the scored commit. [Kill-salvage design and results](docs/REVISION_13.md)
+**Best scored entry: 3.75 placement points**, with early power acquisition
+on top of the 3.73 kill-salvage controller. Receipt `BB-3283154A` scored commit
+`2b328349109577b217ef89fd1e7eba77b1aa7253` on 2026-11-21 at 3:27 PM EST. The site
+selected it automatically. The `score-3.75` tag preserves the exact submission.
+[Opening design and practice result](docs/REVISION_16.md)
 This is below the leading teams; the site provides no individual match breakdown.
 
 | Version | Change | Practice score |
@@ -25,15 +25,16 @@ This is below the leading teams; the site provides no individual match breakdown
 | [13](docs/REVISION_13.md) | Collect confirmed kill rewards before the next hunter | **3.73** |
 | [14](docs/REVISION_14.md) | Finish weakened opponents within the incoming damage budget | 3.58 |
 | [15](docs/REVISION_15.md) | Prepare laser shots behind cover and return after release | 3.58 |
+| [16](docs/REVISION_16.md) | Acquire early weapons and cubes through dedicated missions | **3.75** |
 
-**The default runtime matches the 3.73 controller.** Earlier readiness,
+**The default runtime matches the 3.75 controller.** Earlier readiness,
 rooftop, and duel experiments scored lower. The complete roof
 candidate, including its 141 tests and timing tools, remains public on
 [`experiment/roof-zone`](https://github.com/Muallim718/oval-sentinel/tree/experiment/roof-zone).
 
-**Linux sandbox verified:** the selected revision 13 passed 98 behavioral tests
+**Linux sandbox verified:** the selected revision 16 passed 118 behavioral tests
 and the official restricted-container check, with 300/300 on-time replies and a
-14.1 ms maximum response. [Validation and experimental results](VALIDATION.md)
+19.1 ms maximum response. [Validation and experimental results](VALIDATION.md)
 
 **Start here:** run the checks below, read [the strategy](docs/STRATEGY.md), and
 consult the [full submission history](docs/PRACTICE_LOG.csv). Experiments that

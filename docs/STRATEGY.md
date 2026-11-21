@@ -97,6 +97,12 @@ rear-armor damage, even while its legs move away.
 
 ## Loot and upgrades
 
+In the opening minute the bot can commit to one observed floor weapon, cube,
+crate, or drone. It checks that the route fits its body and that combat is
+unlikely to interrupt the pickup. It tracks a farm target until damage
+confirms the kill, then looks for the dropped reward. A fast quiet scan helps
+find the first resource sooner. [Opening examples](REVISION_16.md)
+
 After a confirmed kill the bot briefly associates observed cube IDs with the
 fight. It can collect them while recovering when a direct route beats the
 nearest known opponent and the estimated damage leaves a useful health reserve.
