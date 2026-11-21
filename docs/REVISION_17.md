@@ -31,3 +31,12 @@ inferences in actual practice.
 All 141 tests passed locally, including the new sound, shot geometry, and
 full Bot checks. The official checker answered 300/300 on time, with an 8.7 ms
 maximum. Local crowded and growing-body maxima were 21.68 and 20.43 ms.
+
+Commit `408be827c0a8e006e96107ce87380aeebd0c9e20` passed 141 Linux tests
+and the pinned image build. The restricted container answered 300/300 on
+time, with p99 9.2 ms and maximum 14.0 ms. The tree was 2,381,167 bytes.
+[Linux check results](https://github.com/Muallim718/oval-sentinel/actions/runs/44947547778)
+
+The practice service accepted this commit at 4:08 PM EST on November 21,
+2026, under receipt `BB-B682596F`. It scored **3.96**, 0.21 above its 3.75
+base. The 4.04 committed-duel entry remained the selected submission.
