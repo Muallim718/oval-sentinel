@@ -96,6 +96,9 @@ class Lab:
         self.bot.world = world
         self.bot.nav = Navigator(world, self.config['mech'])
         self.bot.combat = Combat(world, self.config)
+        if hasattr(self.bot, 'reload_arm'):
+            from sentinel.reload_arm import ReloadArm
+            self.bot.reload_arm = ReloadArm(world, self.config)
         if hasattr(self.bot, 'cover'):
             from sentinel.cover import CoverPlanner
             self.bot.cover = CoverPlanner(world, self.config)

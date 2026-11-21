@@ -30,6 +30,9 @@ class OpenerFeedback(Lab):
         self.bot.combat=Combat(self.world,self.config)
         self.bot.cover=CoverPlanner(self.world,self.config)
         self.bot.motion=GroundSteering(self.world,self.config)
+        if hasattr(self.bot,'reload_arm'):
+            from sentinel.reload_arm import ReloadArm
+            self.bot.reload_arm=ReloadArm(self.world,self.config)
         if hasattr(self.bot,'salvage'):
             from sentinel.salvage import KillSalvage
             self.bot.salvage=KillSalvage(self.world,self.config)
