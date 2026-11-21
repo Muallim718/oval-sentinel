@@ -7,7 +7,8 @@ import os
 import random
 from pathlib import Path
 from . import tuning
-from .combat import Combat, aim_at
+from .combat import aim_at
+from .fire_control import FireControl
 from .geometry import World, distance, unit
 from .navigation import Navigator
 from .memory import LootMemory
@@ -45,7 +46,7 @@ class Bot:
         self.phase = self.rng.random()*math.tau
         self.world = World(Path(hello["map"]["dir"]))
         self.nav = Navigator(self.world, self.config["mech"])
-        self.combat = Combat(self.world, self.config)
+        self.combat = FireControl(self.world, self.config)
         self.cover = CoverPlanner(self.world, self.config)
         self.salvage = KillSalvage(self.world, self.config)
         self.opener = Opener(self.world, self.config)
@@ -415,7 +416,8 @@ class Bot:
         return_fire = now-self.last_weapon_damage < 1.0
         aim, fire, target = self.combat.action(me, targets, retreat, obs["alive"] <= 2,
                                              return_fire=return_fire,
-                                             forced_weapon="gun" if opening is not None else None)
+                                             forced_weapon="gun" if opening is not None else None,
+                                             boost=boost)
         if self.cover_active and self.cover.sheltered and self.recovering:
             # A weak target or an over-wall mortar must not restart the healing
             # clock. Trigger-off releases any already-held laser into the cover.
