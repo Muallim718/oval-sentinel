@@ -25,6 +25,9 @@ cost. Current safe positions receive a small preference to reduce indecision.
 Healthy mechs engage a single exposed opponent when the HP comparison is favorable;
 two exposed opponents trigger evasive positioning. Duel spacing depends on the
 secondary weapon: lightning moves into arc range, while lasers keep more distance.
+Revision 3 also compares estimated sustained damage at that distance, using
+both weapons, cube scaling, our live stats, public enemy base stats, and armor.
+Health alone is no longer treated as a sufficient matchup estimate.
 
 Observed loot is remembered when the bot looks away. Cubes expire from memory
 after 25 seconds, weapons and crates after 60 seconds. Nearby unobstructed negative
@@ -52,6 +55,14 @@ acceleration inertia, and chooses among alternate directions. It favors distance
 from close enemies, dodges predicted projectile paths and charging laser lines,
 and penalizes steps toward the storm. Sprinting has energy hysteresis so the bot
 does not alternate boost on/off every decision. A stuck mech can jump and jet.
+Live body changes invalidate the cached route; new clearances are checked lazily.
+
+Under pressure, a reachable roof may provide a stronger escape. The elevation
+controller validates a clear outside column, a landing point inside the roof,
+enough energy for both ascent and crossing, and the predicted safe zone. It then
+approaches, climbs, crosses, lands, and rests without firing so regeneration can
+start. Occupied roofs and overhead-blocked launch columns are rejected. A
+progress timeout, energy guard, and zone cancellation return control to ground AI.
 
 ## Shooting
 
@@ -91,8 +102,8 @@ server. The preference order is deliberately isolated in `tuning.py`.
 
 These choices are hypotheses until practice matches measure them. In particular:
 
-- Navigation plans ground routes. Local checks support being on roofs and under
-  bridges, but the bot does not plan a full network of roof-to-roof jet paths.
+- Navigation plans ground routes and nearby single-roof escapes, but the bot
+  does not plan a full network of roof-to-roof jet paths.
   Circles ending deep inside tall buildings can be difficult.
 - Terrain, projectile dodging, and mortar collision checks use sampled
   approximations, not the authoritative server's complete physics.

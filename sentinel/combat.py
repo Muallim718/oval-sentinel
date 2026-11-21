@@ -36,6 +36,38 @@ def target_center(target, config):
     return [p[0], p[1], p[2]+height*0.5], radius, height
 
 
+def sustained_dps(weapons, config, cubes, separation, opponent_weapons=()):
+    """A conservative matchup estimate, not an exact opponent simulation.
+
+    Our weapon dicts contain live upgraded stats; enemy kind strings use public
+    base stats because the observation does not reveal their upgrade numbers.
+    """
+    damage = 0.0
+    for weapon in weapons:
+        if not weapon:
+            continue
+        kind = weapon if isinstance(weapon,str) else weapon["kind"]
+        stats = config["weapons"][kind] if isinstance(weapon,str) else weapon["stats"]
+        if kind != "mortar" and separation > stats["range"]:
+            continue
+        if kind == "gun":
+            cycle = stats["mag"]*stats["cooldown"]+stats["reload"]
+            dps = stats["damage"]*stats["mag"]/max(.1,cycle)
+            if isinstance(weapon,dict) and weapon.get("reload",0) > 0:
+                dps *= .65
+        elif kind == "laser":
+            dps = stats["damage"]/max(.1,stats["charge"]+stats["cooldown"])
+            if "mortar" in opponent_weapons:
+                dps *= 1+stats.get("cookoff",0)
+        elif kind == "lightning":
+            dps = stats["damage"]/max(.1,stats["cooldown"])
+        else:
+            dps = (stats["damage"]+stats["splash"])*.35/max(.1,stats["cooldown"])
+        damage += dps
+    scale = 1+config["cubes"].get("damage_per_cube",.04)*min(cubes,config["cubes"].get("stat_cap",10))
+    return max(1,damage*scale)
+
+
 class Combat:
     def __init__(self, world, config):
         self.world, self.config = world, config

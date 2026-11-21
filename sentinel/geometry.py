@@ -45,6 +45,7 @@ def segment_distance_sq(x, y, a, b):
 
 class Prism:
     def __init__(self, data):
+        self.kind = data.get("kind", "building")
         self.base, self.top = data["base"], data["top"]
         self.outer = edges(data["ring"])
         self.holes = [edges(h) for h in data.get("holes", [])]
@@ -155,6 +156,12 @@ class World:
                 return False
             previous_z = z
         return True
+
+    def vertical_clear(self, x, y, low, high, radius, height):
+        """A clear jet column must fit the WHOLE body, including overhead slabs."""
+        count = max(1, math.ceil(abs(high-low)/2))
+        return all(self.body_clear(x,y,low+(high-low)*i/count,radius,height,0)
+                   for i in range(count+1))
 
     def line_clear(self, a, b):
         # Spatially gather prisms along the ray; then test exact polygon crossings.

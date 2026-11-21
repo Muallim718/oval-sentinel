@@ -7,6 +7,10 @@ library only. The `Dockerfile` is already at the repository root.
 
 Public repository: https://github.com/Muallim718/oval-sentinel
 
+**Revision 3** adds live-body route clearance, weapon-aware matchup estimates,
+and planned roof recovery. [Read the diagnosis and tests](docs/REVISION_3.md).
+Its scored comparison is pending; the 3.06 score below belongs to revision 2.
+
 **Revision 2** fixes combat reloads, remembers loot, commits to collection, uses
 weapon-specific duel spacing, and adds recovery hysteresis. Read
 [the diagnosis and changes](docs/REVISION_2.md). **Revision 2 scored 3.06**, up
@@ -78,6 +82,7 @@ Think of each decision as five questions:
 | `sentinel/strategy.py` | Those five decisions; read this first. |
 | `sentinel/tuning.py` | Strategy preferences and upgrade priorities. |
 | `sentinel/memory.py` | Previously observed loot and stale-item removal. |
+| `sentinel/elevation.py` | Energy-checked launch, climb, crossing, landing, and roof recovery. |
 | `sentinel/navigation.py` | A* routes around buildings; searches can continue across decisions. |
 | `sentinel/geometry.py` | Terrain heights, walls, courtyards, bridges, and shot obstruction. |
 | `sentinel/combat.py` | Bullet leading, mortar arcs, laser charging, and lightning checks. |

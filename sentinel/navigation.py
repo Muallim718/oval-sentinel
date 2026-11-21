@@ -31,6 +31,25 @@ class Navigator:
         self.next_plan = -1
         self.search = None
         self.search_done = True
+        self.clearance = {}
+
+    def set_body(self, stats):
+        """Growing from cubes invalidates cached routes, not the entire map grid."""
+        radius, height = stats["radius"]+0.4, stats["height"]
+        if abs(radius-self.radius) > 0.01 or abs(height-self.height) > 0.01:
+            self.radius, self.height = radius, height
+            self.links.clear()
+            self.clearance.clear()
+            self.path = []
+            self.search = None
+            self.search_done = True
+
+    def valid_at(self, k):
+        if not self.valid[k]:
+            return False
+        if k not in self.clearance:
+            self.clearance[k] = self.world.body_clear(*self.points[k],self.radius,self.height,self.step_up)
+        return self.clearance[k]
 
     def nearest(self, pos):
         i = max(0, min(self.nx-1, round((pos[0]-self.x0)/self.step)))
@@ -42,7 +61,7 @@ class Navigator:
                     if r and abs(x-i) != r and abs(y-j) != r:
                         continue
                     k = y*self.nx+x
-                    if self.valid[k]:
+                    if self.valid_at(k):
                         d = distance(pos, self.points[k])
                         if d < best_d:
                             best, best_d = k, d
@@ -51,6 +70,8 @@ class Navigator:
         return None
 
     def neighbors(self, k):
+        if not self.valid_at(k):
+            return []
         if k not in self.links:
             i, j = k % self.nx, k // self.nx
             out = []
@@ -59,9 +80,9 @@ class Navigator:
                 if not (0 <= x < self.nx and 0 <= y < self.ny):
                     continue
                 other = y*self.nx+x
-                if not self.valid[other]:
+                if not self.valid_at(other):
                     continue
-                if dx and dy and not (self.valid[j*self.nx+x] and self.valid[y*self.nx+i]):
+                if dx and dy and not (self.valid_at(j*self.nx+x) and self.valid_at(y*self.nx+i)):
                     continue
                 if self.world.walk_clear(self.points[k], self.points[other], self.radius, self.height, self.step_up):
                     out.append((other, self.step * (math.sqrt(2) if dx and dy else 1)))
