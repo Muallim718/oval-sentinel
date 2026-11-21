@@ -35,3 +35,19 @@ encounters. The official scorer measures the combined policy's placement.
 All 180 local tests passed. The official checker answered 300/300 on time,
 with a 6.8 ms maximum. Crowded and growing-body maxima were 20.51 and
 25.40 ms.
+
+The integrated policy preserved the same 240 HP mean gain at the refill in
+the six actual-map reload cases. At 12 seconds it had 90 HP more and the
+opponent had 157 HP less on average than with the 4.04 policy. In one case
+it traded less outgoing damage for more health. The physical moving-head
+check still landed 45 damage through the open part of the target and withheld
+the shot behind a full-height wall.
+
+Commit `ff4e5bfe8acea9d4d53a88618f0a4b703f42d3c6` passed all 180 Linux tests
+and the pinned image build. The restricted container answered 300/300 on
+time, with p99 9.7 ms and maximum 10.2 ms. The tree was 2,466,118 bytes.
+[Linux check results](https://github.com/Muallim718/oval-sentinel/actions/runs/44951199088)
+
+Receipt `BB-D807ACA6` scored this exact commit **3.98** after acceptance at
+4:27 PM EST on November 21, 2026. The 4.04 entry remained selected. The
+controlled gains did not produce a higher aggregate practice score.
