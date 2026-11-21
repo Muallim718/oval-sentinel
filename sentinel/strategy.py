@@ -14,6 +14,7 @@ from .memory import LootMemory
 from .cover import CoverPlanner
 from .movement import GroundSteering
 from .salvage import KillSalvage
+from .ambush import AmbushPlanner
 
 
 def future_circle(zone, now, seconds):
@@ -47,6 +48,7 @@ class Bot:
         self.cover = CoverPlanner(self.world, self.config)
         self.salvage = KillSalvage(self.world, self.config)
         self.motion = GroundSteering(self.world, self.config)
+        self.ambush = AmbushPlanner(self.world, self.config)
         self.cover_active = False
         self.cover_watch_goal = None
         self.cover_watch_position = None
@@ -302,6 +304,44 @@ class Bot:
         jump = now < self.jet_until and me["grounded"]
         return move, bool(jet or (self.sprinting and me["grounded"]) or jump), bool(jump)
 
+    def ambush_action(self, obs, threats):
+        """Let the offense controller own its validated position and trigger."""
+        me, now = obs["self"], obs["t"]
+        circle = self.shelter_circle(obs)
+        control = self.ambush.choose(obs, threats, circle, recovering=self.recovering)
+        if control is None:
+            if self.ambush.needs_escape and not self.recovering:
+                self.mode, self.duel = "evade", None
+            return None
+        self.cover.clear("laser cover cycle owns the position")
+        self.cover_active = False
+        self.cover_watch_goal = self.cover_watch_position = None
+        self.mode, self.duel = "ambush", None
+        self.goal, self.goal_kind = control["goal"], self.ambush.state
+        self.objective = None
+        self.jet_until = -1
+        self.stuck_since = None
+        self.last_position = list(me["pos"])
+        move, boost = control["move"], control["boost"]
+        if move is None:
+            waypoint = self.nav.waypoint(me["pos"], self.goal, now, circle, [])
+            move, boost = self.motion.choose(obs, waypoint, threats, "loot", 75, False,
+                                             sprinting=boost, cover=True,
+                                             circle=future_circle(obs["zone"], now, 2))
+        self.sprinting = bool(boost)
+        aim = list(control["aim"])
+        aim[1] = max(me["stats"]["min_pitch"], min(me["stats"]["max_pitch"], aim[1]))
+        action = {"tick": obs["tick"], "move": move, "aim": aim, "boost": bool(boost),
+                  "fire": control["fire"], "jump": False}
+        self.apply_passive_actions(obs, action, None, threats)
+        if control.get("reload"):
+            action["reload"] = True
+        if self.debug:
+            action["debug"] = {"label": f"ambush/{self.ambush.state}",
+                               "points": [{"at": [*self.goal, self.world.ground(*self.goal)],
+                                           "color": "#40c0ff"}]}
+        return action
+
     def act(self, obs):
         self.remember(obs)
         me, now = obs["self"], obs["t"]
@@ -313,6 +353,10 @@ class Bot:
             obs, self.loot.get("cubes"), threats, self.shelter_circle(obs),
             emergency=not me["in_zone"] or
             (me["hp"] < me["max_hp"]*.23 and now-self.last_weapon_damage < .6))
+        if salvage_goal is None or old_mode == "ambush":
+            ambush = self.ambush_action(obs, threats)
+            if ambush is not None:
+                return ambush
         cover_goal = None
         had_cover = self.cover_active
         if salvage_goal is None and (self.recovering or self.mode == "evade"):
@@ -388,6 +432,15 @@ class Bot:
                 aim = [damaged[-1]["bearing"], 0.0]
         action = {"tick": obs["tick"], "move": move, "boost": boost,
                   "jump": jump, "aim": aim, "fire": fire}
+        self.apply_passive_actions(obs, action, target, threats)
+        if self.debug:
+            debug_goal = self.goal or me["pos"][:2]
+            action["debug"] = {"label": f"{self.mode}/{self.goal_kind} | HP {me['hp']:.0f}",
+                               "points": [{"at": [*debug_goal,self.world.ground(*debug_goal)], "color":"#40c0ff"}]}
+        return action
+
+    def apply_passive_actions(self, obs, action, target, threats):
+        me = obs["self"]
         gun = next((w for w in me["weapons"] if w and w["kind"] == "gun"), None)
         if gun and gun.get("reload", 0) <= 0:
             # A cooldown or a moment of misalignment is not a reload window.
@@ -407,8 +460,3 @@ class Bot:
                 action["take"] = max(near, key=lambda p: self.weapon_value(p["kind"]))["id"]
                 if second:
                     action["drop"] = 1
-        if self.debug:
-            debug_goal = self.goal or me["pos"][:2]
-            action["debug"] = {"label": f"{self.mode}/{self.goal_kind} | HP {me['hp']:.0f}",
-                               "points": [{"at": [*debug_goal,self.world.ground(*debug_goal)], "color":"#40c0ff"}]}
-        return action
