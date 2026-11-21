@@ -27,3 +27,15 @@ feedback tests. The official checker answered 300/300 on time with an 8.8 ms
 maximum. Local host crowded and growing-body maxima were 17.70 and 13.05 ms.
 Forty separate public-map corner probes found four feasible pairs, with module
 timing median 0.804 ms and maximum 3.248 ms on this machine.
+
+Commit `d897246cdea06bbdf4658e4d78fc729c5ca26cb2` passed 121 Linux tests and
+the pinned image build. The restricted container answered 300/300 on time,
+with p99 5.8 ms and maximum 15.3 ms. The submitted tree was 2,339,246 bytes.
+[Linux check results](https://github.com/Muallim718/oval-sentinel/actions/runs/44945221109)
+
+The practice service accepted the exact commit at 3:15 PM EST on November 21,
+2026, under receipt `BB-149421CA`. It scored **3.58**, 0.15 below the 3.73
+baseline. Aggregate scoring cannot explain how often the corner cycle found
+an opportunity or which interactions changed placement. The baseline remains
+selected and the implementation stays on
+[`experiment/laser-corner-cycle`](https://github.com/Muallim718/oval-sentinel/tree/experiment/laser-corner-cycle).
