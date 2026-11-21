@@ -1,8 +1,16 @@
 # Validation performed
 
-## Current default, revision 20
+## Current default, revision 35
 
-The selected **4.04** controller stays in isolated early duels while its
+The selected **4.19** controller checks for an observed attack, approach, or
+firing posture before starting an optional fight. All 128 tests passed
+locally and on Linux. The restricted container answered 300/300 on time,
+with p99 8.5 ms and an 11.4 ms maximum.
+[Attacker selection, Linux run, and score](docs/REVISION_35.md)
+
+## Revision 20: sustained early duels
+
+The **4.04** controller stays in isolated early duels while its
 health and the opponent's remaining HP support the engagement. All 125 tests
 passed locally and on Linux. The restricted container answered 300/300 on
 time, with p99 12.9 ms and a 14.9 ms maximum.

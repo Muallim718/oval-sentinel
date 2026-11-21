@@ -28,8 +28,11 @@ its previous destination, and relevant visible loot. A goal is more expensive
 when it is exposed to a known enemy, close to that enemy, outside the predicted
 zone, or far away. A wall between the candidate and an enemy reduces its danger
 cost. Current safe positions receive a small preference to reduce indecision.
-Healthy mechs engage a single exposed opponent when the HP comparison is favorable;
-two exposed opponents trigger evasive positioning. Duel spacing depends on the
+Healthy mechs engage a single exposed opponent when its recent attack, torso
+aim, or approach signals a fight and the HP comparison is favorable. Nearby
+and weakened enemies can also become targets. All observed enemies still count
+toward crossfire, and two exposed opponents trigger evasive positioning.
+Duel spacing depends on the
 secondary weapon: lightning moves into arc range, while lasers keep more distance.
 With more than eight mechs remaining, an isolated duel can continue below the
 ordinary health threshold against a weaker opponent. The bot uses closer gun

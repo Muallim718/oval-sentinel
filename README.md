@@ -7,12 +7,12 @@ library only. The `Dockerfile` is already at the repository root.
 
 Public repository: [Muallim718/oval-sentinel](https://github.com/Muallim718/oval-sentinel)
 
-**Best scored entry is 4.04 placement points.** This version follows through
-in isolated early duels while preserving cover, kill rewards, and the power
-opener. Receipt `BB-5EE1F65A` scored commit
-`47a4d7d56a20a274dd8c38f946c8456fc9fa8176` on 2026-11-21 at 4:00 PM EST.
-The site selected it automatically. The `score-4.04` tag preserves the exact
-submission. [Duel design and practice result](docs/REVISION_20.md)
+**Best scored entry is 4.19 placement points.** Oval Sentinel uses observed
+aggression to choose its fights and keeps isolated early duels committed.
+Receipt `BB-8312DB68` scored commit
+`95a644460964134a3f3684b8e2ed45f4bf6e403c` on 2026-11-21 at 5:17 PM EST.
+The site selected it automatically. The `score-4.19` tag preserves the exact
+submission. [Attacker selection and practice result](docs/REVISION_35.md)
 
 | Version | Change | Practice score |
 | --- | --- | ---: |
@@ -29,12 +29,13 @@ submission. [Duel design and practice result](docs/REVISION_20.md)
 | [17](docs/REVISION_17.md) | Acquire contacts through sound and aim at exposed surfaces | 3.96 |
 | [20](docs/REVISION_20.md) | Sustain isolated duels through the first waves | **4.04** |
 | [23](docs/REVISION_23.md) | Repair and rearm during the gap after a kill | 4.00 |
+| [35](docs/REVISION_35.md) | Commit to fights with observed attackers | **4.19** |
 
-**The default runtime matches the 4.04 controller.** The exact source and
+**The default runtime matches the 4.19 controller.** The exact source and
 tests for earlier revisions remain public in their tags and experiment branches.
 
-**Linux sandbox verified.** Revision 20 passed 125 tests. The official
-restricted-container check received 300/300 on-time replies, with a 14.9 ms
+**Linux sandbox verified.** Revision 35 passed 128 tests. The official
+restricted-container check received 300/300 on-time replies, with an 11.4 ms
 maximum response. [Validation and experimental results](VALIDATION.md)
 
 **Start here:** run the checks below, read [the strategy](docs/STRATEGY.md), and
