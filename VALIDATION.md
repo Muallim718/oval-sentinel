@@ -13,7 +13,16 @@ maximum 9.3 ms. Crowded/growing-body host maxima were 21.38/22.00 ms, with no
 decisions above 50 ms. The unchanged runtime's original Linux sandbox check is
 linked in the revision 8 section; GitHub Actions also repeats it for this push.
 
+## Revision 12: projectile-aware duels
+
+The candidate improved health and kill outcomes in the limited reactive gun
+model, then scored **3.38** in actual practice against the selected 3.63 entry.
+Both local and Linux runs passed 107 tests. The official checker returned
+300/300 on-time restricted-container replies, with a 13.7 ms maximum.
+[Design, case comparisons, and practice result](docs/REVISION_12.md)
+
 ## Revision 11: phase-aware roof zone control
+
 
 **Experimental, not the default:** scored **3.31**. Revision 8's 3.63 entry
 remains selected, and its runtime and test suite were restored exactly on

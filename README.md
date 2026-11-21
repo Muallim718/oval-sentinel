@@ -20,9 +20,10 @@ This is below the leading teams; the site provides no individual match breakdown
 | [9](docs/REVISION_9.md) | Readiness and protected resource acquisition | 3.58 |
 | [10](docs/REVISION_10.md) | Proactive rooftop sanctuary | 3.40 |
 | [11](docs/REVISION_11.md) | Stay on safe roof space through zone movement | 3.31 |
+| [12](docs/REVISION_12.md) | Incoming-shot prediction, spacing, and firing windows | 3.38 |
 
-**The default runtime matches the 3.63 controller exactly.** The resource and
-rooftop experiments scored lower and were not adopted. The complete roof
+**The default runtime matches the 3.63 controller exactly.** The resource,
+rooftop, and duel experiments scored lower. The complete roof
 candidate, including its 141 tests and timing tools, remains public on
 [`experiment/roof-zone`](https://github.com/Muallim718/oval-sentinel/tree/experiment/roof-zone).
 
