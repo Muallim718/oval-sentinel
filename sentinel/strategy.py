@@ -8,7 +8,7 @@ import random
 from pathlib import Path
 from . import tuning
 from .combat import Combat, aim_at
-from .geometry import World, distance, unit
+from .geometry import World, angle_error, distance, unit
 from .navigation import Navigator
 from .memory import LootMemory
 from .cover import CoverPlanner
@@ -60,6 +60,7 @@ class Bot:
         self.next_goal = -1
         self.last_damage = -100
         self.last_weapon_damage = -100
+        self.recent_attackers = {}
         self.last_attack = -100
         self.last_position = None
         self.stuck_since = None
@@ -85,20 +86,45 @@ class Bot:
                 self.last_damage = now
                 if event.get("weapon") not in (None, "zone"):
                     self.last_weapon_damage = now
+                    attacker = event.get("by")
+                    if isinstance(attacker, int) and 0 <= attacker < 16:
+                        self.recent_attackers[attacker] = now
             elif event["type"] == "kill":
                 self.salvage.record_kill(now, event["target"], self.seen.get(event["target"]))
                 self.seen.pop(event["target"], None)
+                self.recent_attackers.pop(event["target"], None)
         self.seen = {k:v for k,v in self.seen.items() if now-v[0] < tuning.THREAT_MEMORY}
 
     def threats(self, now):
         return [(enemy, max(0.25, 1-(now-last)/tuning.THREAT_MEMORY))
                 for last, enemy in self.seen.values()]
 
+    def active_enemy_ids(self, obs):
+        """Answer observed aggression before starting an optional mech fight."""
+        me, now = obs["self"], obs["t"]
+        active = set()
+        for enemy in obs["mechs"]:
+            if enemy["kind"] != "mech":
+                continue
+            ident = enemy["id"]
+            p, ep = me["pos"], enemy["pos"]
+            dx, dy = p[0]-ep[0], p[1]-ep[1]
+            d = max(.01, math.hypot(dx, dy))
+            facing = abs(angle_error(enemy["aim"][0], math.atan2(dy, dx)))
+            vx, vy = enemy.get("vel", (0, 0, 0))[:2]
+            closing = (vx*dx+vy*dy)/d
+            if (obs["alive"] <= 2 or d < 19 or enemy.get("hp", 1400) <= 135 or
+                    now-self.recent_attackers.get(ident, -100) < 12 or
+                    (d <= 200 and facing <= .39) or
+                    (d <= 110 and closing >= 5 and facing <= 1.2)):
+                active.add(ident)
+        return active
+
     @staticmethod
     def weapon_value(kind):
         return {"laser": 3.0, "lightning": 3.0, "mortar": 1.0, "gun": 0.0}.get(kind, 0)
 
-    def select_mode(self, obs):
+    def select_mode(self, obs, active=None):
         """Fight isolated pursuers; recover with hysteresis; avoid crossfire."""
         me = obs["self"]
         ratio = me["hp"]/me["max_hp"]
@@ -119,7 +145,7 @@ class Bot:
         self.mode = "recover" if self.recovering else "loot"
         if len(exposed) >= 2:
             self.mode = "recover" if self.recovering else "evade"
-        elif exposed:
+        elif exposed and (active is None or exposed[0]["id"] in active):
             enemy = exposed[0]
             finish = enemy.get("hp",1400) < 170
             favorable = (ratio > 0.70 and enemy.get("hp",1400) < me["hp"]*1.12)
@@ -311,7 +337,8 @@ class Bot:
         me, now = obs["self"], obs["t"]
         self.nav.set_body(me["stats"])
         old_mode = self.mode
-        self.select_mode(obs)
+        active = self.active_enemy_ids(obs)
+        self.select_mode(obs, active)
         threats = sorted(self.threats(now), key=lambda ec: distance(me["pos"],ec[0]["pos"]))
         salvage_goal = self.salvage.choose(
             obs, self.loot.get("cubes"), threats, self.shelter_circle(obs),
@@ -320,7 +347,8 @@ class Bot:
         previous_commitment = self.commitment.target_id
         repairing_in_cover = (self.recovering and self.cover_active and self.cover.sheltered and
                               now-self.last_weapon_damage > .5)
-        duel = self.commitment.choose(obs, threats, future_circle(obs["zone"], now, 10),
+        fight_obs = dict(obs, mechs=[e for e in obs["mechs"] if e["id"] in active])
+        duel = self.commitment.choose(fight_obs, threats, future_circle(obs["zone"], now, 10),
                                       self.world, sheltered=repairing_in_cover)
         if salvage_goal is not None:
             duel = None
@@ -401,7 +429,8 @@ class Bot:
             waypoint = salvage_goal or self.nav.waypoint(
                 me["pos"], self.goal, now, circle, [e["pos"] for e,c in threats[:5]])
             move, boost, jump = self.steer(obs, waypoint, threats, retreat, closing=bool(duel and duel.sprint))
-        targets = sorted(obs["mechs"], key=lambda e: (e["kind"] != "mech", distance(me["pos"],e["pos"])))
+        targets = sorted((e for e in obs["mechs"] if e["kind"] != "mech" or e["id"] in active),
+                         key=lambda e: (e["kind"] != "mech", distance(me["pos"],e["pos"])))
         if opening is not None:
             targets = [opening.exclusive_target] if opening.exclusive_target else []
         elif duel is not None:
