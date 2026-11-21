@@ -30,16 +30,32 @@ laser release timing, lightning limits, mortar ballistics, self-splash avoidance
 zone interpolation, defensive upgrades, vertical loot separation, recovery
 behavior, and failure to start without a map.
 
+## GitHub Actions Linux sandbox: PASS
+
+The public repository is [Muallim718/oval-sentinel](https://github.com/Muallim718/oval-sentinel).
+The [initial successful workflow](https://github.com/Muallim718/oval-sentinel/actions/runs/44911786415)
+checked bot commit `68b9a63a0f676998df0642f1657b808ea3b26cd0` on Ubuntu 24.04.
+
+- All 21 behavioral tests passed on Linux.
+- Committed tree: 29 files, 2,075,149 bytes, below 20,000,000 bytes.
+- The pinned `linux/amd64` Docker image built successfully.
+- Restricted-container official checker: **300/300 on-time answers**, zero misses.
+- Container startup: 625 ms; response latency p50 0.6 ms, p90 1.6 ms,
+  p99 4.0 ms, maximum 5.5 ms.
+- Container restrictions included no network, one CPU, 512 MB memory with no swap,
+  uid 65534, no capabilities, 128-process limit, read-only root filesystem,
+  read-only `/arena`, and a 64 MB `/tmp` tmpfs.
+- The synthetic crowded-input benchmark on the Linux host reported p99 19.60 ms
+  and maximum 23.81 ms, with zero decisions above 50 ms. That benchmark runs on
+  the host; only the official stream was checked inside the restricted container.
+
 ## Not yet verified
 
-- **Docker image build and Linux sandbox execution.** Docker and WSL are absent
-  from the preparation computer. Run `py -3.13 tools/verify.py --docker` with
-  Docker installed, or push to GitHub and wait for the included Actions check.
 - **Actual practice or final performance.** No scored matches have been run. The
   official kit provides a recording, not an interactive engine. It cannot measure
   wins, placement, route success over a full match, or an improvement over 1.15.
-- **Finalist rebuild and event submission.** No repository has been published,
-  no URL submitted, and no submission slot consumed.
+- **Finalist rebuild and event submission.** The repository is public, but no URL
+  has yet been submitted and no submission slot has been consumed.
 
 ## Reproduce
 

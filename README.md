@@ -3,6 +3,14 @@
 A readable, survival-oriented bot for **Mech Royale**, using Python's standard
 library only. The `Dockerfile` is already at the repository root.
 
+[![Bot checks](https://github.com/Muallim718/oval-sentinel/actions/workflows/check.yml/badge.svg)](https://github.com/Muallim718/oval-sentinel/actions/workflows/check.yml)
+
+Public repository: https://github.com/Muallim718/oval-sentinel
+
+**Linux sandbox verified:** the initial published bot passed all 21 behavioral
+tests and the official restricted-container check (300/300 on-time answers;
+5.5 ms maximum response). See [VALIDATION.md](VALIDATION.md) for the run link.
+
 **Start here:** run the tests, create a public GitHub repository from this folder,
 wait for its Linux sandbox check to pass, then submit that repository's URL.
 
@@ -40,9 +48,9 @@ python3 tools/verify.py --docker
 
 On Windows, use `py -3.13` instead of `python3`.
 
-Docker is not installed on the computer where this project was prepared, so the
-container build and Linux sandbox check have **not** been executed locally.
-The included GitHub Actions workflow performs them on Ubuntu when you push.
+Docker is not installed on the computer where this project was prepared. The
+container build and Linux sandbox check were successfully executed on Ubuntu
+through GitHub Actions. The workflow repeats them when you push.
 See [VALIDATION.md](VALIDATION.md) for the checks actually run.
 
 ## 2. Understand the bot
@@ -89,8 +97,8 @@ git commit -m "Build Oval Sentinel survival bot"
 gh repo create YOUR-USERNAME/oval-sentinel --public --source . --remote origin --push
 ```
 
-For this computer, the authenticated username observed during preparation was
-`Muallim718`. Nothing has been published or submitted by this project preparation.
+This project is already published at `Muallim718/oval-sentinel`; skip repository
+creation if you are using that repository. No scored submission has been made yet.
 
 In GitHub's **Actions** tab, wait for **Bot checks / linux-sandbox** to pass.
 It builds the pinned image and checks no-network execution, uid 65534, one CPU,
