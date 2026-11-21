@@ -16,6 +16,9 @@ from .movement import GroundSteering
 from .salvage import KillSalvage
 from .opener import Opener
 from .duel_commitment import DuelCommitment
+from .reload_cover import ReloadCover
+from .reload_arm import ReloadArm
+from .sound import SoundScout
 
 
 def future_circle(zone, now, seconds):
@@ -50,6 +53,10 @@ class Bot:
         self.salvage = KillSalvage(self.world, self.config)
         self.opener = Opener(self.world, self.config)
         self.commitment = DuelCommitment(self.config)
+        self.reload_cover = ReloadCover(self.config)
+        self.reload_arm = ReloadArm(self.world, self.config)
+        self.arm_active = False
+        self.sound = SoundScout(self.config)
         self.motion = GroundSteering(self.world, self.config)
         self.cover_active = False
         self.cover_watch_goal = None
@@ -308,11 +315,13 @@ class Bot:
 
     def act(self, obs):
         self.remember(obs)
+        self.sound.update(obs)
         me, now = obs["self"], obs["t"]
         self.nav.set_body(me["stats"])
         old_mode = self.mode
         self.select_mode(obs)
         threats = sorted(self.threats(now), key=lambda ec: distance(me["pos"],ec[0]["pos"]))
+        self.reload_arm.update(obs)
         salvage_goal = self.salvage.choose(
             obs, self.loot.get("cubes"), threats, self.shelter_circle(obs),
             emergency=not me["in_zone"] or
@@ -336,9 +345,17 @@ class Bot:
                                          recovering=self.recovering)
         elif self.opener.current is not None:
             self.opener.cancel("existing combat action takes priority")
+        arming = None
+        had_arming = self.arm_active
+        if salvage_goal is None and opening is None and not charging:
+            arming = self.reload_arm.choose(obs, threats, self.shelter_circle(obs),
+                                            recovering=self.recovering)
+        elif self.reload_arm.current is not None:
+            self.reload_arm.cancel("higher priority resource or held combat action")
+        self.arm_active = arming is not None
         cover_goal = None
         had_cover = self.cover_active
-        if (salvage_goal is None and opening is None and duel is None and
+        if (salvage_goal is None and opening is None and arming is None and duel is None and
                 (self.recovering or self.mode == "evade")):
             cover_goal = self.cover.choose(obs, threats, self.shelter_circle(obs),
                                            recovering=self.recovering)
@@ -373,6 +390,12 @@ class Bot:
             self.next_goal = now+tuning.GOAL_INTERVAL
             self.objective = None
             self.jet_until = -1
+        elif arming is not None:
+            self.cover.clear("short reload equipment route owns movement")
+            self.goal, self.goal_kind = tuple(arming.goal[:2]), "reload weapon"
+            self.next_goal = now+tuning.GOAL_INTERVAL
+            self.objective = None
+            self.jet_until = -1
         elif self.cover_active:
             self.goal, self.goal_kind = cover_goal, "cover"
             self.objective = None
@@ -380,20 +403,41 @@ class Bot:
             self.jet_until = -1  # this is a ground refuge, not a flight destination
             if self.recovering:
                 self.mode, self.duel = "recover", None
-        elif had_cover:
+        elif had_cover or had_arming:
             self.goal = None
             self.next_goal = -1
         retreat = self.recovering and self.mode != "fight"
-        if (salvage_goal is None and opening is None and not self.cover_active and
+        if (salvage_goal is None and opening is None and arming is None and not self.cover_active and
                 (self.goal is None or old_mode != self.mode or now >= self.next_goal or not me["in_zone"])):
             self.goal, self.goal_kind, self.circle = self.choose_goal(obs, retreat, threats)
             self.next_goal = now+tuning.GOAL_INTERVAL
         circle = future_circle(obs["zone"], now, 12)
-        if opening is not None:
+        reload_move = None
+        if salvage_goal is None and opening is None and arming is None:
+            reload_move = self.reload_cover.choose(obs, self.duel, threats, future_circle(obs["zone"], now, 3),
+                                                   self.cover)
+        else:
+            self.reload_cover.cancel()
+        if reload_move is not None:
+            move, boost, jump = list(reload_move.move), False, False
+            self.sprinting = False
+            self.stuck_since = None
+            self.last_position = list(me["pos"])
+        elif opening is not None:
             waypoint = opening.waypoint or opening.goal
             move, boost = self.motion.choose(obs, waypoint, threats, "opening", 75, False,
                                              sprinting=opening.sprint, cover=False,
                                              circle=future_circle(obs["zone"], now, 2))
+            jump, self.sprinting = False, boost
+            self.stuck_since = None
+            self.last_position = list(me["pos"])
+        elif arming is not None:
+            if arming.move is not None:
+                move, boost = list(arming.move), False
+            else:
+                move, boost = self.motion.choose(obs, arming.waypoint, threats, "salvage", 75, False,
+                                                 sprinting=False, cover=False,
+                                                 circle=future_circle(obs["zone"], now, 2))
             jump, self.sprinting = False, boost
             self.stuck_since = None
             self.last_position = list(me["pos"])
@@ -429,7 +473,9 @@ class Bot:
             elif opening is not None:
                 aim = aim_at(me["pos"], opening.goal)
             else:
-                scan = self.opener.scan_yaw(obs, threats)
+                scan = self.sound.heading(now)
+                if scan is None:
+                    scan = self.opener.scan_yaw(obs, threats)
                 aim = [scan if scan is not None else (self.phase+now*0.7+math.pi)%math.tau-math.pi, 0.0]
             damaged = [e for e in obs["events"] if e["type"] == "damaged" and e.get("bearing") is not None]
             if damaged:
@@ -455,8 +501,10 @@ class Bot:
                 action["take"] = max(near, key=lambda p: self.weapon_value(p["kind"]))["id"]
                 if second:
                     action["drop"] = 1
+        if arming is not None and arming.take is not None and second is None:
+            action["take"] = arming.take
         if self.debug:
-            debug_goal = self.goal or me["pos"][:2]
+            debug_goal = reload_move.goal[:2] if reload_move else (self.goal or me["pos"][:2])
             action["debug"] = {"label": f"{self.mode}/{self.goal_kind} | HP {me['hp']:.0f}",
                                "points": [{"at": [*debug_goal,self.world.ground(*debug_goal)], "color":"#40c0ff"}]}
         return action
