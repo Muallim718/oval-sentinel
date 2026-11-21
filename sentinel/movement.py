@@ -47,7 +47,7 @@ class GroundSteering:
         visibility = [seen for e, c, seen in lanes[:3]]
         visible = [(e, c) for (e, c), seen in zip(nearby, visibility) if seen]
         desired = unit(waypoint[0]-p[0], waypoint[1]-p[1])
-        if visible and not cover:
+        if visible and not cover and mode != "salvage":
             enemy = visible[0][0]
             away = unit(p[0]-enemy["pos"][0], p[1]-enemy["pos"][1])
             preferred = fight_range if mode == "fight" else 90
@@ -84,10 +84,12 @@ class GroundSteering:
                 d = distance(q, enemy["pos"])
                 seen_next = self.exposed(q, me, enemy)
                 if seen_next:
-                    score += (34 if cover or retreat else 8)*confidence
-                    score += max(0, 70-d)*(1.2 if mode != "fight" else .25)*confidence
+                    recovering_cover = cover or (retreat and mode != "salvage")
+                    score += (34 if recovering_cover else 8)*confidence
+                    if mode != "salvage":
+                        score += max(0, 70-d)*(1.2 if mode != "fight" else .25)*confidence
                     if not seen_here:
-                        score += (22 if cover or retreat else 6)*confidence
+                        score += (22 if recovering_cover else 6)*confidence
                     if enemy.get("charging"):
                         ep = enemy["pos"]
                         bearing = math.atan2(q[1]-ep[1], q[0]-ep[0])

@@ -13,6 +13,7 @@ from .navigation import Navigator
 from .memory import LootMemory
 from .cover import CoverPlanner
 from .movement import GroundSteering
+from .salvage import KillSalvage
 
 
 def future_circle(zone, now, seconds):
@@ -44,6 +45,7 @@ class Bot:
         self.nav = Navigator(self.world, self.config["mech"])
         self.combat = Combat(self.world, self.config)
         self.cover = CoverPlanner(self.world, self.config)
+        self.salvage = KillSalvage(self.world, self.config)
         self.motion = GroundSteering(self.world, self.config)
         self.cover_active = False
         self.cover_watch_goal = None
@@ -80,6 +82,7 @@ class Bot:
                 if event.get("weapon") not in (None, "zone"):
                     self.last_weapon_damage = now
             elif event["type"] == "kill":
+                self.salvage.record_kill(now, event["target"], self.seen.get(event["target"]))
                 self.seen.pop(event["target"], None)
         self.seen = {k:v for k,v in self.seen.items() if now-v[0] < tuning.THREAT_MEMORY}
 
@@ -256,7 +259,9 @@ class Bot:
         urgent = (not me["in_zone"] or must_rotate or
                   (danger < 80 and self.mode != "fight") or
                   (retreat and now-self.last_damage < 3))
-        if self.sprinting:
+        if self.mode == "salvage":
+            self.sprinting = self.salvage.sprint and me["grounded"]
+        elif self.sprinting:
             self.sprinting = urgent and me["energy"] > tuning.ENERGY_RESERVE
         else:
             self.sprinting = urgent and me["energy"] > tuning.ENERGY_RESERVE+24
@@ -264,6 +269,12 @@ class Bot:
             obs, waypoint, threats, self.mode, self.fight_range, retreat,
             sprinting=self.sprinting, cover=self.cover_active,
             circle=future_circle(obs["zone"], now, 2))
+        if self.mode == "salvage":
+            # The pickup race already checked a ground corridor and sprint
+            # reserve. Never introduce a blind jet on this short commitment.
+            self.stuck_since = None
+            self.last_position = list(p)
+            return move, bool(self.sprinting and me["grounded"]), False
         if (self.last_position is not None and distance(p, self.last_position) < .18
                 and distance(p, waypoint) > 8):
             if self.stuck_since is None:
@@ -298,9 +309,13 @@ class Bot:
         old_mode = self.mode
         self.select_mode(obs)
         threats = sorted(self.threats(now), key=lambda ec: distance(me["pos"],ec[0]["pos"]))
+        salvage_goal = self.salvage.choose(
+            obs, self.loot.get("cubes"), threats, self.shelter_circle(obs),
+            emergency=not me["in_zone"] or
+            (me["hp"] < me["max_hp"]*.23 and now-self.last_weapon_damage < .6))
         cover_goal = None
         had_cover = self.cover_active
-        if self.recovering or self.mode == "evade":
+        if salvage_goal is None and (self.recovering or self.mode == "evade"):
             cover_goal = self.cover.choose(obs, threats, self.shelter_circle(obs),
                                            recovering=self.recovering)
         if cover_goal is not None and self.cover.state == "approach":
@@ -320,7 +335,14 @@ class Bot:
             if not (self.recovering or self.mode == "evade"):
                 self.cover.clear("healthy or no crossfire")
         self.cover_active = cover_goal is not None
-        if self.cover_active:
+        if salvage_goal is not None:
+            self.cover.clear("collecting confirmed kill reward")
+            self.mode, self.duel = "salvage", None
+            self.goal, self.goal_kind = salvage_goal, "kill cubes"
+            self.next_goal = now+tuning.GOAL_INTERVAL
+            self.objective = None
+            self.jet_until = -1
+        elif self.cover_active:
             self.goal, self.goal_kind = cover_goal, "cover"
             self.objective = None
             self.next_goal = now+tuning.GOAL_INTERVAL
@@ -331,13 +353,13 @@ class Bot:
             self.goal = None
             self.next_goal = -1
         retreat = self.recovering and self.mode != "fight"
-        if not self.cover_active and (self.goal is None or old_mode != self.mode or
+        if salvage_goal is None and not self.cover_active and (self.goal is None or old_mode != self.mode or
                                       now >= self.next_goal or not me["in_zone"]):
             self.goal, self.goal_kind, self.circle = self.choose_goal(obs, retreat, threats)
             self.next_goal = now+tuning.GOAL_INTERVAL
         circle = future_circle(obs["zone"], now, 12)
-        waypoint = self.nav.waypoint(me["pos"], self.goal, now, circle,
-                                     [e["pos"] for e,c in threats[:5]])
+        waypoint = salvage_goal or self.nav.waypoint(
+            me["pos"], self.goal, now, circle, [e["pos"] for e,c in threats[:5]])
         move, boost, jump = self.steer(obs, waypoint, threats, retreat)
         targets = sorted(obs["mechs"], key=lambda e: (e["kind"] != "mech", distance(me["pos"],e["pos"])))
         if not retreat and (not threats or distance(me["pos"],threats[0][0]["pos"]) > 110):
