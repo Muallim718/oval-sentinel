@@ -180,15 +180,7 @@ class LaserDoctrineTests(unittest.TestCase):
         self.assertTrue(self.policy.nav.body_changed)
         self.assertAlmostEqual(self.policy.route_body[0], self.me["stats"]["radius"])
 
-    def test_joint_range_denies_arc_and_keeps_real_gun_overlap(self):
-        self.me["weapons"][1] = self.weapon("laser")
-        enemy = dict(weapons=["gun", "lightning"])
-        desired = self.policy.preferred_range(self.me, enemy, self.circle)
-        self.assertGreater(desired, self.config["weapons"]["lightning"]["range"]*1.2**2+20)
-        self.assertLess(desired, self.me["weapons"][0]["stats"]["range"]*.75)
-        self.assertLessEqual(self.policy.preferred_range(self.me, enemy, ([0, 0], 25)), 36.25)
-
-    def test_healthy_committed_laser_duel_uses_range_but_weak_finish_keeps_prior_close_rule(self):
+    def test_held_laser_uses_the_original_committed_duel_range(self):
         self.me["weapons"][1] = self.weapon("laser")
         enemy = dict(id=1, kind="mech", pos=[0, 0, 0], vel=[0, 0, 0],
                      aim=[3.14, 0], hp=1400, max_hp=1400, cubes=0, weapons=["gun"])
@@ -196,21 +188,11 @@ class LaserDoctrineTests(unittest.TestCase):
         bot = self.bot()
         bot.act(self.obs)
         self.assertEqual(bot.commitment.target_id, 1)
-        self.assertGreater(bot.fight_range, 100)
+        self.assertEqual(bot.fight_range, 42)
         enemy["hp"] = 300
         self.advance(.1)
         bot.act(self.obs)
         self.assertEqual(bot.fight_range, 42)
-
-    def test_lens_and_fast_capacitor_use_real_cycle_dps_not_charge_time_alone(self):
-        self.me["weapons"][1] = self.weapon("laser")
-        self.obs["offer"] = dict(choices=[dict(id="laser_charge"), dict(id="servos"), dict(id="laser_damage")])
-        self.assertEqual(self.policy.pick_upgrade(self.obs), 2)
-        self.obs["offer"] = dict(choices=[dict(id="laser_damage"), dict(id="gun_mag")])
-        self.assertEqual(self.policy.pick_upgrade(self.obs), 1)
-        self.obs["offer"] = dict(choices=[dict(id="laser_charge"), dict(id="servos")])
-        self.assertEqual(self.policy.pick_upgrade(self.obs), 1)
-
 
 if __name__ == "__main__":
     unittest.main()

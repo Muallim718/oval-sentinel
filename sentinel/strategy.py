@@ -15,7 +15,7 @@ from .cover import CoverPlanner
 from .movement import GroundSteering
 from .salvage import KillSalvage
 from .opener import Mission, Opener
-from .duel_commitment import CommittedDuel, DuelCommitment
+from .duel_commitment import DuelCommitment
 from .laser_doctrine import LaserDoctrine
 from .quiet_window import QuietWindow
 
@@ -160,8 +160,7 @@ class Bot:
                 if second and second["kind"] == "lightning":
                     self.fight_range = second["stats"]["range"]*0.78
                 elif second and second["kind"] == "laser":
-                    self.fight_range = self.laser_doctrine.preferred_range(
-                        me, enemy, future_circle(obs["zone"], obs["t"], 8)) or 90
+                    self.fight_range = 110 if "mortar" in enemy.get("weapons", []) else 90
                 elif "lightning" in enemy.get("weapons",[]):
                     self.fight_range = 85
             else:
@@ -362,13 +361,6 @@ class Bot:
         if salvage_goal is not None:
             duel = None
         if duel is not None:
-            # Keep the existing vulnerable-target finish, but an even fight
-            # with a laser should not inherit the gun-only42m rush.
-            finish = duel.enemy.get("hp", 1400) < min(520, .68*me["hp"])
-            laser_range = self.laser_doctrine.preferred_range(
-                me, duel.enemy, future_circle(obs["zone"], now, 8))
-            if laser_range is not None and not finish:
-                duel = CommittedDuel(duel.enemy, laser_range, False)
             self.mode, self.duel = "fight", duel.enemy
             self.fight_range = duel.range
         if previous_commitment != self.commitment.target_id:
@@ -509,9 +501,7 @@ class Bot:
             action["reload"] = gun.get("ammo",0) <= 0 or (quiet and gun.get("ammo",0) < gun["stats"]["mag"]*0.65)
         if obs.get("offer"):
             choices = obs["offer"]["choices"]
-            laser_pick = self.laser_doctrine.pick_upgrade(obs)
-            action["pick"] = (laser_pick if laser_pick is not None else
-                              max(range(len(choices)), key=lambda i: tuning.UPGRADE_VALUE.get(choices[i]["id"], 0)))
+            action["pick"] = max(range(len(choices)), key=lambda i: tuning.UPGRADE_VALUE.get(choices[i]["id"], 0))
         held = [w["kind"] for w in me["weapons"] if w]
         second = me["weapons"][1]
         laser_take = self.laser_doctrine.pickup_action(

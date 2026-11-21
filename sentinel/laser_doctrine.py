@@ -4,11 +4,9 @@ Only observed floor weapons are pursued. The inherited routing and pressure
 checks are our original opening policy, extended to permit a deliberate swap
 and a complete, checked route before leaving for an obscured pickup.
 """
-import copy
 import math
 import time
 
-from . import tuning
 from .geometry import distance
 from .opener import Mission, Opener
 
@@ -214,51 +212,3 @@ class LaserDoctrine(Opener):
         if replacing:
             result["drop"] = slot
         return result
-
-    @staticmethod
-    def preferred_range(me, enemy, circle):
-        gun = next((w for w in me["weapons"] if w and w["kind"] == "gun"), None)
-        laser = next((w for w in me["weapons"] if w and w["kind"] == "laser"), None)
-        if not gun or not laser:
-            return None
-        overlap = min(gun["stats"]["range"], laser["stats"]["range"])
-        desired = min(150, overlap*.65)
-        if "mortar" in enemy.get("weapons", []):
-            desired = min(165, overlap*.72)
-        # A target near the circle's center cannot be fought from beyond its
-        # radius; do not request an unreachable ring through the storm.
-        available = max(6, distance(enemy.get("pos", circle[0]), circle[0])+
-                        circle[1]-me["stats"]["radius"]-6)
-        return min(desired, circle[1]*1.45, available)
-
-    @staticmethod
-    def _dps(kind, stats):
-        if kind == "laser":
-            return stats["damage"]/(stats["charge"]+stats["cooldown"])
-        if kind == "gun":
-            return stats["damage"]*stats["mag"]/(stats["mag"]*stats["cooldown"]+stats["reload"])
-        return 0
-
-    def pick_upgrade(self, obs):
-        if not obs.get("offer") or not any(w and w["kind"] == "laser" for w in obs["self"]["weapons"]):
-            return None
-        upgrades = {u["id"]: u for u in self.config["upgrades"]}
-        held = {w["kind"]: w for w in obs["self"]["weapons"] if w}
-        values = []
-        for choice in obs["offer"]["choices"]:
-            value = tuning.UPGRADE_VALUE.get(choice["id"], 0)
-            upgrade = upgrades.get(choice["id"], {})
-            kind = upgrade.get("requires")
-            if kind in ("gun", "laser") and kind in held:
-                before = held[kind]["stats"]
-                after = copy.copy(before)
-                for effect in upgrade.get("effects", []):
-                    prefix = "weapons."+kind+"."
-                    if effect["path"].startswith(prefix):
-                        key = effect["path"][len(prefix):]
-                        after[key] = after[key]*effect.get("mul", 1)+effect.get("add", 0)
-                gain = self._dps(kind, after)-self._dps(kind, before)
-                if gain > 0:
-                    value = 88+gain
-            values.append(value)
-        return max(range(len(values)), key=lambda i: values[i])
