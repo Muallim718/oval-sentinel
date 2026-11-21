@@ -7,9 +7,10 @@ library only. The `Dockerfile` is already at the repository root.
 
 Public repository: https://github.com/Muallim718/oval-sentinel
 
-**Revision 5 candidate:** gun/laser shared-aim coordination alone, on top of the
-3.21 version. [Diagnosis and controlled tests](docs/REVISION_5.md) are recorded;
-the new candidate has not yet been scored.
+**Revision 5 experiment: 3.13**, below the 3.21 best. The gun/laser coordination
+change was not adopted; the runtime code on `main` matches the proven revision 4.
+The [experiment and findings](docs/REVISION_5.md) remain available on
+[`experiment/shared-aim`](https://github.com/Muallim718/oval-sentinel/tree/experiment/shared-aim).
 
 **Revision 4: 3.21 placement points**, up from revision 2's 3.06 (+0.15).
 Body-size-aware routing alone is retained on top of revision 2.
@@ -101,7 +102,6 @@ Think of each decision as five questions:
 | `tools/verify.py` | The single verification command. |
 | `tools/benchmark.py` | Recorded and synthetic decision latency checks. |
 | `tools/diagnose.py` | Policy-output audit of the kit recording. |
-| `tools/weapon_feedback.py` | Controlled gun/laser timing and hit-feedback comparison. |
 | `docs/protocol.md` | Official rules and message specification. |
 
 Read [docs/STRATEGY.md](docs/STRATEGY.md) for the reasoning and tradeoffs.

@@ -1,5 +1,35 @@
 # Validation performed
 
+## Revision 5: shared gun/laser aim checks
+
+**Experimental, not the default:** scored 3.13 versus revision 4's 3.21. Revision
+4 remains selected, and its runtime sources were restored on `main`.
+
+Commit `4396a6c736ec00990fab35c2f6e6df4739f02410` passed the
+[Linux workflow](https://github.com/Muallim718/oval-sentinel/actions/runs/44917131861).
+Only `sentinel/combat.py` changed among runtime sources relative to revision 4.
+
+- All 45 behavioral tests passed locally and on Linux.
+- Restricted-container official checker: 300/300 on-time answers, zero misses;
+  p50 0.7 ms, p90 2.1 ms, p99 7.7 ms, maximum 12.7 ms on that runner.
+- Synthetic crowded-input benchmark on the Linux host: maximum 26.11 ms;
+  growing-body variant: maximum 24.57 ms. No decisions exceeded 50 ms.
+- Committed source: 38 files, 2,130,311 bytes, below 20 MB.
+- The controlled circular-target model increased combined damage from 6,120 to
+  6,750 at 120 m and 12 m/s over 30 seconds. Gun hits rose from 45 to 66;
+  full-charge laser hits fell from 13 to 12. A nine-case range/speed sweep had
+  no modeled damage decrease. This is not an authoritative match simulation.
+
+Receipt `BB-EC17A634`, submitted on 2026-11-21 at 10:12 AM EST after the quota
+reopened, scored 3.13. The implied average placement is approximately 12.87.
+The observed 0.08-point difference does not establish statistical significance.
+No match-level breakdown was exposed. Revision 4's 3.21 remained selected, and
+the next slot was shown at 10:28 AM EST.
+
+The complete experiment is public on `experiment/shared-aim`. After restoration,
+`bot.py`, `mechfight.py`, and all `sentinel/` sources were compared with revision
+4 commit `55e2f3b557db4e93df80f4b7ee0fa2f749327a07` and match exactly.
+
 ## Revision 4: body-size-only checks
 
 Commit `55e2f3b557db4e93df80f4b7ee0fa2f749327a07` passed the
