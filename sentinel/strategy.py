@@ -16,6 +16,7 @@ from .movement import GroundSteering
 from .salvage import KillSalvage
 from .opener import Opener
 from .duel_commitment import DuelCommitment
+from .impact_boost import ImpactBoost
 
 
 def future_circle(zone, now, seconds):
@@ -50,6 +51,7 @@ class Bot:
         self.salvage = KillSalvage(self.world, self.config)
         self.opener = Opener(self.world, self.config)
         self.commitment = DuelCommitment(self.config)
+        self.impact_boost = ImpactBoost(self.world, self.config, reserve=tuning.ENERGY_RESERVE)
         self.motion = GroundSteering(self.world, self.config)
         self.cover_active = False
         self.cover_watch_goal = None
@@ -434,6 +436,11 @@ class Bot:
             damaged = [e for e in obs["events"] if e["type"] == "damaged" and e.get("bearing") is not None]
             if damaged:
                 aim = [damaged[-1]["bearing"], 0.0]
+        movement_reserved = (jump or opening is not None or salvage_goal is not None or
+                             (self.cover_active and self.cover.sheltered))
+        move, boost = self.impact_boost.choose(obs, move, boost,
+                                              circle=future_circle(obs["zone"], now, 1),
+                                              sheltered=movement_reserved, fire=fire)
         action = {"tick": obs["tick"], "move": move, "boost": boost,
                   "jump": jump, "aim": aim, "fire": fire}
         gun = next((w for w in me["weapons"] if w and w["kind"] == "gun"), None)
