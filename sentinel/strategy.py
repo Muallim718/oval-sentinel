@@ -17,6 +17,7 @@ from .salvage import KillSalvage
 from .opener import Opener
 from .duel_commitment import DuelCommitment
 from .quiet_window import QuietWindow
+from .reload_cover import ReloadCover
 
 
 def future_circle(zone, now, seconds):
@@ -52,6 +53,7 @@ class Bot:
         self.opener = Opener(self.world, self.config)
         self.commitment = DuelCommitment(self.config)
         self.quiet_window = QuietWindow(self.config)
+        self.reload_cover = ReloadCover(self.config)
         self.motion = GroundSteering(self.world, self.config)
         self.cover_active = False
         self.cover_watch_goal = None
@@ -422,7 +424,18 @@ class Bot:
             self.goal, self.goal_kind, self.circle = self.choose_goal(obs, retreat, threats)
             self.next_goal = now+tuning.GOAL_INTERVAL
         circle = future_circle(obs["zone"], now, 12)
-        if opening is not None:
+        reload_move = None
+        if salvage_goal is None and opening is None and not repairing:
+            reload_move = self.reload_cover.choose(obs, self.duel, threats, future_circle(obs["zone"], now, 3),
+                                                   self.cover)
+        else:
+            self.reload_cover.cancel()
+        if reload_move is not None:
+            move, boost, jump = list(reload_move.move), False, False
+            self.sprinting = False
+            self.stuck_since = None
+            self.last_position = list(me["pos"])
+        elif opening is not None:
             waypoint = opening.waypoint or opening.goal
             move, boost = self.motion.choose(obs, waypoint, threats, "opening", 75, False,
                                              sprinting=opening.sprint, cover=False,
@@ -496,7 +509,7 @@ class Bot:
                 if second:
                     action["drop"] = 1
         if self.debug:
-            debug_goal = self.goal or me["pos"][:2]
+            debug_goal = reload_move.goal[:2] if reload_move else (self.goal or me["pos"][:2])
             action["debug"] = {"label": f"{self.mode}/{self.goal_kind} | HP {me['hp']:.0f}",
                                "points": [{"at": [*debug_goal,self.world.ground(*debug_goal)], "color":"#40c0ff"}]}
         return action
