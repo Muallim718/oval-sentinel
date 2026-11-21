@@ -36,6 +36,9 @@ class OpenerFeedback(Lab):
         if hasattr(self.bot,'opener'):
             from sentinel.opener import Opener
             self.bot.opener=Opener(self.world,self.config)
+        if hasattr(self.bot,'laser_doctrine'):
+            from sentinel.laser_doctrine import LaserDoctrine
+            self.bot.laser_doctrine=LaserDoctrine(self.world,self.config)
         self.me=self.entity(0,[0,0,0],1400)
         self.me.update(kind='mech',aim=[0,0]);self.me['_combat']=self.me['_spent']=-100
         self.entities=[self.me];self.enemies=[];self.crates=[];self.pickups=[];self.loot=[]

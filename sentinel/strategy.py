@@ -14,8 +14,9 @@ from .memory import LootMemory
 from .cover import CoverPlanner
 from .movement import GroundSteering
 from .salvage import KillSalvage
-from .opener import Opener
-from .duel_commitment import DuelCommitment
+from .opener import Opener, Mission
+from .duel_commitment import DuelCommitment, CommittedDuel
+from .laser_doctrine import LaserDoctrine
 
 
 def future_circle(zone, now, seconds):
@@ -49,6 +50,7 @@ class Bot:
         self.cover = CoverPlanner(self.world, self.config)
         self.salvage = KillSalvage(self.world, self.config)
         self.opener = Opener(self.world, self.config)
+        self.laser_doctrine = LaserDoctrine(self.world, self.config)
         self.commitment = DuelCommitment(self.config)
         self.motion = GroundSteering(self.world, self.config)
         self.cover_active = False
@@ -156,7 +158,8 @@ class Bot:
                 if second and second["kind"] == "lightning":
                     self.fight_range = second["stats"]["range"]*0.78
                 elif second and second["kind"] == "laser":
-                    self.fight_range = 110 if "mortar" in enemy.get("weapons",[]) else 90
+                    self.fight_range = self.laser_doctrine.preferred_range(
+                        me, enemy, future_circle(obs["zone"], obs["t"], 8)) or 90
                 elif "lightning" in enemy.get("weapons",[]):
                     self.fight_range = 85
             else:
@@ -334,6 +337,7 @@ class Bot:
 
     def act(self, obs):
         self.remember(obs)
+        self.laser_doctrine.update(obs)
         me, now = obs["self"], obs["t"]
         self.nav.set_body(me["stats"])
         old_mode = self.mode
@@ -353,6 +357,13 @@ class Bot:
         if salvage_goal is not None:
             duel = None
         if duel is not None:
+            # Keep the existing vulnerable-target finish, but an even fight
+            # with a laser should not inherit the gun-only42m rush.
+            finish = duel.enemy.get("hp", 1400) < min(520, .68*me["hp"])
+            laser_range = self.laser_doctrine.preferred_range(
+                me, duel.enemy, future_circle(obs["zone"], now, 8))
+            if laser_range is not None and not finish:
+                duel = CommittedDuel(duel.enemy, laser_range, False)
             self.mode, self.duel = "fight", duel.enemy
             self.fight_range = duel.range
         if previous_commitment != self.commitment.target_id:
@@ -360,10 +371,22 @@ class Bot:
         opening = None
         charging = any(w and w["kind"] == "laser" and w.get("charge", 0) > 0 for w in me["weapons"])
         if salvage_goal is None and duel is None and not charging:
-            opening = self.opener.choose(obs, threats, self.shelter_circle(obs),
-                                         recovering=self.recovering)
+            opening = self.laser_doctrine.choose(obs, threats, self.shelter_circle(obs),
+                                                recovering=self.recovering)
+            if opening is None and self.laser_doctrine.pending:
+                # An obstructed route can take several bounded A* decisions.
+                # Wait for evidence instead of starting an incompatible farm.
+                opening = Mission(tuple(me["pos"]), "laser planning", None, None,
+                                  False, self.laser_doctrine.reason, tuple(me["pos"]))
+            if opening is None:
+                opening = self.opener.choose(obs, threats, self.shelter_circle(obs),
+                                             recovering=self.recovering)
+            elif self.opener.current is not None:
+                self.opener.cancel("verified laser acquisition takes priority")
         elif self.opener.current is not None:
             self.opener.cancel("existing combat action takes priority")
+        if salvage_goal is not None or duel is not None or charging:
+            self.laser_doctrine.cancel("existing combat or salvage takes priority")
         cover_goal = None
         had_cover = self.cover_active
         if (salvage_goal is None and opening is None and duel is None and
@@ -472,11 +495,16 @@ class Bot:
             action["reload"] = gun.get("ammo",0) <= 0 or (quiet and gun.get("ammo",0) < gun["stats"]["mag"]*0.65)
         if obs.get("offer"):
             choices = obs["offer"]["choices"]
-            action["pick"] = max(range(len(choices)), key=lambda i: tuning.UPGRADE_VALUE.get(choices[i]["id"], 0))
+            laser_pick = self.laser_doctrine.pick_upgrade(obs)
+            action["pick"] = (laser_pick if laser_pick is not None else
+                              max(range(len(choices)), key=lambda i: tuning.UPGRADE_VALUE.get(choices[i]["id"], 0)))
         held = [w["kind"] for w in me["weapons"] if w]
         second = me["weapons"][1]
+        laser_take = self.laser_doctrine.pickup_action(
+            obs, threats, self.shelter_circle(obs), recovering=self.recovering)
         if second is None or second["kind"] == "mortar":
             near = [p for p in obs["pickups"] if p["kind"] not in held and
+                    not self.laser_doctrine.pending and
                     distance(me["pos"],p["pos"]) <= self.config["loot"]["pickup_radius"] and
                     abs(me["pos"][2]-p["pos"][2]) <= 4 and
                     self.weapon_value(p["kind"]) > (self.weapon_value(second["kind"])+0.5 if second else 0)]
@@ -484,6 +512,10 @@ class Bot:
                 action["take"] = max(near, key=lambda p: self.weapon_value(p["kind"]))["id"]
                 if second:
                     action["drop"] = 1
+        if laser_take:
+            action.update(laser_take)
+            if "drop" in laser_take:
+                action["fire"][laser_take["drop"]] = False
         if self.debug:
             debug_goal = self.goal or me["pos"][:2]
             action["debug"] = {"label": f"{self.mode}/{self.goal_kind} | HP {me['hp']:.0f}",
