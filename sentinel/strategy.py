@@ -15,6 +15,7 @@ from .cover import CoverPlanner
 from .movement import GroundSteering
 from .salvage import KillSalvage
 from .opener import Opener
+from .refit import RefitCycle
 
 
 def future_circle(zone, now, seconds):
@@ -48,6 +49,7 @@ class Bot:
         self.cover = CoverPlanner(self.world, self.config)
         self.salvage = KillSalvage(self.world, self.config)
         self.opener = Opener(self.world, self.config)
+        self.refit = RefitCycle(self.config)
         self.motion = GroundSteering(self.world, self.config)
         self.cover_active = False
         self.cover_watch_goal = None
@@ -104,6 +106,7 @@ class Bot:
             self.recovering = True
         elif ratio >= 0.90:
             self.recovering = False
+        recovering = self.recovering or self.refit.active
         eye = [me["pos"][0], me["pos"][1], me["pos"][2]+me["stats"]["eye_height"]]
         nearby = sorted((e for e in obs["mechs"] if e["kind"] == "mech" and
                          distance(me["pos"],e["pos"]) < 155),
@@ -114,14 +117,14 @@ class Bot:
             if self.world.line_clear(eye,[ep[0],ep[1],ep[2]+4.5]):
                 exposed.append(e)
         self.duel = None
-        self.mode = "recover" if self.recovering else "loot"
+        self.mode = "recover" if recovering else "loot"
         if len(exposed) >= 2:
-            self.mode = "recover" if self.recovering else "evade"
+            self.mode = "recover" if recovering else "evade"
         elif exposed:
             enemy = exposed[0]
             finish = enemy.get("hp",1400) < 170
             favorable = (ratio > 0.70 and enemy.get("hp",1400) < me["hp"]*1.12)
-            if (favorable and not self.recovering) or finish:
+            if (favorable and not recovering) or (finish and not self.refit.active):
                 self.mode, self.duel = "fight", enemy
                 second = next((w for w in me["weapons"] if w and w["kind"] != "gun"),None)
                 self.fight_range = 65
@@ -132,7 +135,7 @@ class Bot:
                 elif "lightning" in enemy.get("weapons",[]):
                     self.fight_range = 85
             else:
-                self.mode = "recover" if self.recovering else "evade"
+                self.mode = "recover" if recovering else "evade"
 
     def goal_score(self, pos, me, circle, threats, kind="hide", value=0):
         """Lower is better. Covered positions are safer than equally distant open ones."""
@@ -309,8 +312,15 @@ class Bot:
         me, now = obs["self"], obs["t"]
         self.nav.set_body(me["stats"])
         old_mode = self.mode
-        self.select_mode(obs)
         threats = sorted(self.threats(now), key=lambda ec: distance(me["pos"],ec[0]["pos"]))
+        self.refit.update(obs)
+        if self.refit.active:
+            center, radius = future_circle(obs["zone"], now, 5)
+            self.refit.choose(obs, threats, sheltered=self.cover_active and self.cover.sheltered,
+                              zone_safe=distance(me["pos"], center)+4 < radius,
+                              ordinary_recovery=self.recovering and me["hp"] < .90*me["max_hp"])
+        self.select_mode(obs)
+        recovering = self.recovering or self.refit.active
         salvage_goal = self.salvage.choose(
             obs, self.loot.get("cubes"), threats, self.shelter_circle(obs),
             emergency=not me["in_zone"] or
@@ -319,14 +329,14 @@ class Bot:
         charging = any(w and w["kind"] == "laser" and w.get("charge", 0) > 0 for w in me["weapons"])
         if salvage_goal is None and not charging:
             opening = self.opener.choose(obs, threats, self.shelter_circle(obs),
-                                         recovering=self.recovering)
+                                         recovering=recovering)
         elif self.opener.current is not None:
             self.opener.cancel("existing combat action takes priority")
         cover_goal = None
         had_cover = self.cover_active
-        if salvage_goal is None and opening is None and (self.recovering or self.mode == "evade"):
+        if salvage_goal is None and opening is None and (recovering or self.mode == "evade"):
             cover_goal = self.cover.choose(obs, threats, self.shelter_circle(obs),
-                                           recovering=self.recovering)
+                                           recovering=recovering)
         if cover_goal is not None and self.cover.state == "approach":
             changed = (self.cover_watch_goal is None or
                        distance(cover_goal, self.cover_watch_goal) > 3)
@@ -341,7 +351,7 @@ class Bot:
                 cover_goal = None
         else:
             self.cover_watch_goal = self.cover_watch_position = None
-            if not (self.recovering or self.mode == "evade"):
+            if not (recovering or self.mode == "evade"):
                 self.cover.clear("healthy or no crossfire")
         self.cover_active = cover_goal is not None
         if salvage_goal is not None:
@@ -363,12 +373,12 @@ class Bot:
             self.objective = None
             self.next_goal = now+tuning.GOAL_INTERVAL
             self.jet_until = -1  # this is a ground refuge, not a flight destination
-            if self.recovering:
+            if recovering:
                 self.mode, self.duel = "recover", None
         elif had_cover:
             self.goal = None
             self.next_goal = -1
-        retreat = self.recovering and self.mode != "fight"
+        retreat = recovering and self.mode != "fight"
         if (salvage_goal is None and opening is None and not self.cover_active and
                 (self.goal is None or old_mode != self.mode or now >= self.next_goal or not me["in_zone"])):
             self.goal, self.goal_kind, self.circle = self.choose_goal(obs, retreat, threats)
@@ -389,6 +399,8 @@ class Bot:
         targets = sorted(obs["mechs"], key=lambda e: (e["kind"] != "mech", distance(me["pos"],e["pos"])))
         if opening is not None:
             targets = [opening.exclusive_target] if opening.exclusive_target else []
+        elif self.refit.active:
+            targets = []
         elif not retreat and (not threats or distance(me["pos"],threats[0][0]["pos"]) > 110):
             # Crate farming only when quiet and close enough to collect the cube.
             targets += sorted((c for c in self.loot.get("crates") if distance(me["pos"],c["pos"]) < 110),
@@ -399,7 +411,7 @@ class Bot:
         aim, fire, target = self.combat.action(me, targets, retreat, obs["alive"] <= 2,
                                              return_fire=return_fire,
                                              forced_weapon="gun" if opening is not None else None)
-        if self.cover_active and self.cover.sheltered and self.recovering:
+        if self.cover_active and self.cover.sheltered and recovering:
             # A weak target or an over-wall mortar must not restart the healing
             # clock. Trigger-off releases any already-held laser into the cover.
             aim, fire, target = None, [False, False], None
@@ -423,7 +435,9 @@ class Bot:
         if gun and gun.get("reload", 0) <= 0:
             # A cooldown or a moment of misalignment is not a reload window.
             quiet = target is None and not any(distance(me["pos"],e["pos"]) < 150 for e,c in threats)
-            action["reload"] = gun.get("ammo",0) <= 0 or (quiet and gun.get("ammo",0) < gun["stats"]["mag"]*0.65)
+            action["reload"] = (gun.get("ammo", 0) <= 0 or
+                                (quiet and gun.get("ammo", 0) < gun["stats"]["mag"]*.65) or
+                                self.refit.should_reload(obs, self.cover_active and self.cover.sheltered, threats))
         if obs.get("offer"):
             choices = obs["offer"]["choices"]
             action["pick"] = max(range(len(choices)), key=lambda i: tuning.UPGRADE_VALUE.get(choices[i]["id"], 0))
