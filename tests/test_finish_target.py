@@ -4,7 +4,7 @@ import math
 import unittest
 
 from test_bot import fixture, flat_world, rectangle
-from sentinel.combat import Combat
+from sentinel.combat import Combat, ExposedSolution
 from sentinel.cover import CoverPlanner
 from sentinel.finish_target import FinishTarget
 from sentinel.movement import GroundSteering
@@ -110,6 +110,14 @@ class FinishTargetTests(unittest.TestCase):
     def test_a_foreground_body_on_another_height_does_not_block_the_gun(self):
         self.obs["mechs"].append(dict(self.strong,id=3,pos=[50,20,30]))
         self.assertIsNotNone(self.choose())
+
+    def test_partial_surface_remains_available_to_the_ordinary_scheduler(self):
+        self.world = flat_world([rectangle(95, 36, 97, 40, top=6.5)])
+        gun = self.me["weapons"][0]
+        solution = Combat(self.world, self.config).solve(self.me, self.weak, gun)
+        self.assertIsInstance(solution, ExposedSolution)
+        self.me["aim"] = solution[0]
+        self.assertIsNone(self.choose())
 
     def test_real_repair_retreat_storm_or_opening_preserve_original_ownership(self):
         for kwargs in (dict(retreat=True),dict(repairing=True),dict(forced_weapon="gun")):

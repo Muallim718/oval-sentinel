@@ -7,7 +7,7 @@ This module never moves, starts a chase, or predicts that an unobserved hit land
 from dataclasses import dataclass
 import math
 
-from .combat import Combat, target_center
+from .combat import Combat, ExposedSolution, target_center
 from .geometry import angle_error, distance
 
 
@@ -114,7 +114,10 @@ class FinishTarget:
             if shots > self.MAX_SHOTS or shots > gun.get("ammo", 0) and not continuing:
                 continue
             solved = solver.solve(me, enemy, gun)
-            if solved is None:
+            # The ordinary scheduler verifies the actual barrel against an
+            # off-center silhouette. Reserve this short finish for a clear
+            # center lane so each tracked decision can use the same test.
+            if solved is None or isinstance(solved, ExposedSolution):
                 continue
             aim, point, radius, height = solved
             d = max(1, distance(me["pos"], point))
