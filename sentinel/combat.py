@@ -1,6 +1,7 @@
 """Intercept aiming and trigger discipline. Both slots share one torso aim."""
 import math
 from .geometry import angle_error, distance
+from .mortar import MortarFallback
 
 
 def intercept(origin, target, velocity, speed):
@@ -40,6 +41,7 @@ class Combat:
     def __init__(self, world, config):
         self.world, self.config = world, config
         self.locked_id = None
+        self.mortar_fallback = MortarFallback(world, config)
 
     def solve(self, me, target, weapon):
         origin = list(me["pos"])
@@ -134,6 +136,19 @@ class Combat:
         aim, point, radius, height = solution
         stats_me = me["stats"]
         aim[1] = max(stats_me.get("min_pitch", -0.7), min(stats_me.get("max_pitch", 1.3), aim[1]))
+        mortar_fire = False
+        primary_weapon = me["weapons"][primary]
+        if primary_weapon["kind"] == "mortar":
+            aligned_mortar = (abs(angle_error(aim[0], me["aim"][0])) < .035 and
+                              abs(aim[1]-me["aim"][1]) < .025)
+            decision = self.mortar_fallback.assess(me, target, primary_weapon, aim,
+                                                   legacy_aligned=aligned_mortar)
+            mortar_fire = aligned_mortar or decision.extra_fire
+            if decision.handoff_gun:
+                gun_action = self.action(me, [target], retreat, final_duel,
+                                         return_fire=return_fire, forced_weapon="gun")
+                if gun_action[0] is not None:
+                    return gun_action
         fire = [False, False]
         for slot, weapon in enumerate(me["weapons"]):
             if not weapon or (forced_weapon and weapon["kind"] != forced_weapon):
@@ -165,5 +180,5 @@ class Combat:
                 else:
                     fire[slot] = same_aim and (not retreat or d > 65)
             elif slot == primary:
-                fire[slot] = yaw_error < 0.035 and pitch_error < 0.025
+                fire[slot] = mortar_fire
         return aim, fire, target
