@@ -13,6 +13,7 @@ from .navigation import Navigator
 from .memory import LootMemory
 from .cover import CoverPlanner
 from .movement import GroundSteering
+from .duel import duel_envelope
 
 
 def future_circle(zone, now, seconds):
@@ -67,6 +68,7 @@ class Bot:
         self.mode = "loot"
         self.duel = None
         self.fight_range = 65.0
+        self.duel_sprint = False
 
     def remember(self, obs):
         now = obs["t"]
@@ -109,6 +111,7 @@ class Bot:
             if self.world.line_clear(eye,[ep[0],ep[1],ep[2]+4.5]):
                 exposed.append(e)
         self.duel = None
+        self.duel_sprint = False
         self.mode = "recover" if self.recovering else "loot"
         if len(exposed) >= 2:
             self.mode = "recover" if self.recovering else "evade"
@@ -118,14 +121,7 @@ class Bot:
             favorable = (ratio > 0.70 and enemy.get("hp",1400) < me["hp"]*1.12)
             if (favorable and not self.recovering) or finish:
                 self.mode, self.duel = "fight", enemy
-                second = next((w for w in me["weapons"] if w and w["kind"] != "gun"),None)
-                self.fight_range = 65
-                if second and second["kind"] == "lightning":
-                    self.fight_range = second["stats"]["range"]*0.78
-                elif second and second["kind"] == "laser":
-                    self.fight_range = 110 if "mortar" in enemy.get("weapons",[]) else 90
-                elif "lightning" in enemy.get("weapons",[]):
-                    self.fight_range = 85
+                self.fight_range, self.duel_sprint = duel_envelope(me, enemy, self.config)
             else:
                 self.mode = "recover" if self.recovering else "evade"
 
@@ -254,6 +250,7 @@ class Bot:
         zone_ahead = future_circle(obs["zone"], now, 6)
         must_rotate = distance(p, zone_ahead[0]) > zone_ahead[1]-12
         urgent = (not me["in_zone"] or must_rotate or
+                  (self.mode == "fight" and self.duel_sprint and not self.cover_active) or
                   (danger < 80 and self.mode != "fight") or
                   (retreat and now-self.last_damage < 3))
         if self.sprinting:
@@ -295,7 +292,7 @@ class Bot:
         self.remember(obs)
         me, now = obs["self"], obs["t"]
         self.nav.set_body(me["stats"])
-        old_mode = self.mode
+        old_mode, old_range = self.mode, self.fight_range
         self.select_mode(obs)
         threats = sorted(self.threats(now), key=lambda ec: distance(me["pos"],ec[0]["pos"]))
         cover_goal = None
@@ -331,8 +328,9 @@ class Bot:
             self.goal = None
             self.next_goal = -1
         retreat = self.recovering and self.mode != "fight"
+        changed_range = self.mode == "fight" and abs(self.fight_range - old_range) > 15
         if not self.cover_active and (self.goal is None or old_mode != self.mode or
-                                      now >= self.next_goal or not me["in_zone"]):
+                                      changed_range or now >= self.next_goal or not me["in_zone"]):
             self.goal, self.goal_kind, self.circle = self.choose_goal(obs, retreat, threats)
             self.next_goal = now+tuning.GOAL_INTERVAL
         circle = future_circle(obs["zone"], now, 12)
@@ -348,7 +346,7 @@ class Bot:
         # preserving movement speed and energy; stop once incoming hits cease.
         return_fire = now-self.last_weapon_damage < 1.0
         aim, fire, target = self.combat.action(me, targets, retreat, obs["alive"] <= 2,
-                                             return_fire=return_fire)
+                                             return_fire=return_fire, move=move, boost=boost)
         if self.cover_active and self.cover.sheltered and self.recovering:
             # A weak target or an over-wall mortar must not restart the healing
             # clock. Trigger-off releases any already-held laser into the cover.

@@ -7,22 +7,36 @@ import math
 
 from .geometry import angle_error, distance, unit
 from .cover import firing_lane
+from .incoming import STEP, STEPS, impact_cost, incoming_tracks
 
 
-def forecast(me, move, speed, seconds):
-    """Integrate commanded ground velocity with acceleration and existing inertia."""
+def forecast_path(me, move, speed):
+    """Use the same acceleration samples for collision, travel, and bullet risk."""
     x, y, z = me["pos"]
     vx, vy = me["vel"][:2]
     acceleration = me["stats"]["ground_accel" if me.get("grounded", True) else "air_accel"]
-    steps = max(1, math.ceil(seconds/.05))
-    dt = seconds/steps
-    for _ in range(steps):
-        dx, dy = move[0]*speed-vx, move[1]*speed-vy
-        change = math.hypot(dx, dy)
-        fraction = min(1, acceleration*dt/max(1e-9, change))
-        vx, vy = vx+dx*fraction, vy+dy*fraction
-        x, y = x+vx*dt, y+vy*dt
-    return x, y, z
+    target_x, target_y = move[0] * speed, move[1] * speed
+    path = [(x, y, z)]
+    for tick in range(1, 16):
+        dx, dy = target_x - vx, target_y - vy
+        fraction = min(1, acceleration * STEP / max(1e-9, math.hypot(dx, dy)))
+        vx, vy = vx + dx * fraction, vy + dy * fraction
+        x, y = x + vx * STEP, y + vy * STEP
+        feet = z
+        if not me["grounded"]:
+            elapsed = tick * STEP
+            feet += me["vel"][2] * elapsed - me["stats"]["gravity"] * elapsed**2 / 2
+        path.append((x, y, feet))
+    return path
+
+
+def duel_strafe(now, enemy, point):
+    """Vary lateral speed faster than the old two-second half-orbit."""
+    away = unit(point[0] - enemy["pos"][0], point[1] - enemy["pos"][1])
+    # Uneven intervals make a constant-velocity aim estimate less reliable.
+    cycle = (now + 0.13 * enemy.get("id", 0)) % 1.91
+    direction = 1 if cycle < .43 or .99 <= cycle < 1.57 else -1
+    return -away[1] * direction, away[0] * direction
 
 
 class GroundSteering:
@@ -68,13 +82,25 @@ class GroundSteering:
         if any(w and w["kind"] == "laser" and w.get("charge", 0) > 0
                for w in me["weapons"]):
             speed *= stats.get("charge_move_mult", .5)
-        projectiles = sorted(obs["projectiles"], key=lambda pr: distance(p, pr["pos"]))[:10]
+        tracks = incoming_tracks(obs, self.config, speed)
+        splash = self.config["weapons"]["mortar"]["splash_radius"]
+        strafe = None
+        if mode == "fight" and len(visible) == 1 and not cover and me["grounded"]:
+            enemy = visible[0][0]
+            separation = distance(p, enemy["pos"])
+            if 60 <= separation <= max(155, fight_range + 25) and abs(separation - fight_range) < 30:
+                strafe = duel_strafe(now, enemy, p)
+                commands += [strafe, (-strafe[0], -strafe[1])]
+        follow_terrain = (tracks and me["grounded"] and
+                          p[2] <= self.world.ground(*p[:2]) + stats["step_up"])
         best = None
         for command in commands:
-            q = forecast(me, command, speed, .40)
-            far = forecast(me, command, speed, .75)
-            if not self.world.walk_clear(p, q, stats["radius"]+.3, stats["height"],
-                                         stats["step_up"], stats["max_slope_deg"]):
+            path = forecast_path(me, command, speed)
+            q, far = path[8], path[15]
+            anchors = (p, path[4], q, path[STEPS]) if tracks else (p, q)
+            if not all(self.world.walk_clear(start, end, stats["radius"]+.3, stats["height"],
+                                             stats["step_up"], stats["max_slope_deg"])
+                       for start, end in zip(anchors, anchors[1:])):
                 continue
             score = distance(q, waypoint)*1.0+distance(far, waypoint)*.32
             score += max(0, distance(q, circle[0])-circle[1]+4)*16
@@ -94,20 +120,13 @@ class GroundSteering:
                         score += max(0, 1-abs(angle_error(bearing, enemy["aim"][0]))/.16)*24
                 if mode == "fight" and not cover:
                     score += abs(d-fight_range)*.28*confidence
-            # Closest approach uses our actual rollout velocity, including brake.
-            vx, vy = (q[0]-p[0])/.40, (q[1]-p[1])/.40
-            for projectile in projectiles:
-                pp, velocity = projectile["pos"], projectile["vel"]
-                rx, ry = pp[0]-p[0], pp[1]-p[1]
-                dx, dy = velocity[0]-vx, velocity[1]-vy
-                t = max(0, min(.50, -(rx*dx+ry*dy)/(dx*dx+dy*dy or 1)))
-                d = math.hypot(rx+dx*t, ry+dy*t)
-                z = pp[2]+velocity[2]*t
-                if projectile["kind"] == "mortar":
-                    z -= self.config["weapons"]["mortar"]["gravity"]*t*t/2
-                if p[2]-2 < z < p[2]+stats["height"]+3:
-                    radius = stats["radius"]+(7 if projectile["kind"] == "mortar" else 1)
-                    score += max(0, radius+2-d)*12
+            if tracks:
+                if follow_terrain:
+                    path[1:STEPS+1] = [(x, y, self.world.ground(x, y))
+                                       for x, y, _ in path[1:STEPS+1]]
+                score += impact_cost(self.world, me, path, tracks, splash)
+            if strafe is not None:
+                score -= 5.5 * (command[0] * strafe[0] + command[1] * strafe[1])
             if command == (0., 0.) and distance(p, waypoint) > 5:
                 score += 3  # do not stop indefinitely on the way to useful cover
             if command == (0., 0.) and visible and mode == "fight" and not cover:
