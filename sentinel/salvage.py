@@ -6,8 +6,10 @@ and conservative; they do not replace the movement controller's collision dodge.
 """
 import math
 import time
+import copy
 from .geometry import angle_error, distance, segment_distance_sq, unit
 from .cover import firing_lane
+from . import tuning
 
 
 class KillSalvage:
@@ -17,8 +19,14 @@ class KillSalvage:
     BEACON_SECONDS = 8.0
     SEARCH_SECONDS = .004
 
-    def __init__(self, world, config):
+    def __init__(self, world, config, navigator=None):
         self.world, self.config = world, config
+        self.navigator = navigator
+        self.waypoint = None
+        self.routed = False
+        self._route_key = None
+        self._route_nav = None
+        self._route_points = None
         self.beacons = []
         self.cube_seen = {}
         self.goal = None
@@ -53,9 +61,140 @@ class KillSalvage:
 
     def _reject(self, reason):
         self.goal, self.sprint, self.state = None, False, "idle"
+        self.waypoint, self.routed = None, False
         self.active_cube = None
         self.reason = reason
         return None
+
+    def _growth(self, me, count):
+        size = self.config["cubes"].get("size_per_cube", .05)
+        ratio = (1+size*(me["cubes"]+count))/(1+size*me["cubes"])
+        return me["stats"]["radius"]*ratio, me["stats"]["height"]*ratio
+
+    def _detour(self, me, cube, cubes, circle, deadline):
+        """Return a complete grown-body route; partial A* never owns motion.
+
+        The live Navigator's immutable grid is shared. Its search, links and
+        grown-body clearance are private to this short mission. Every locally
+        known cube is included in the planning body, even if not on the route;
+        actual route intersections determine the reported growth/damage body.
+        """
+        if self.navigator is None:
+            return None
+        pickup = self.config["cubes"]["pickup_radius"]
+        known = [c for c in cubes if distance(me["pos"], c["pos"]) <= self.MAX_DISTANCE+pickup and
+                 abs(c["pos"][2]-self.world.ground(*c["pos"][:2])) < 4]
+        radius, height = self._growth(me, len(known))
+        stats = me["stats"]
+        if not self.world.body_clear(*me["pos"],radius+.2,height,stats["step_up"]):
+            self.reason = "post-pickup body has no safe return anchor"
+            return None
+        goal = (*cube["pos"][:2], self.world.ground(*cube["pos"][:2]))
+        # An exact anchor stays within pickup range even with ordinary gait's
+        # arrival/braking band. Never substitute a merely nearby grid cell.
+        anchors = [goal]
+        for i in range(8):
+            x, y = goal[0]+.75*math.cos(i*math.pi/4), goal[1]+.75*math.sin(i*math.pi/4)
+            anchors.append((x, y, self.world.ground(x, y)))
+        anchor = None
+        for point in anchors:
+            if time.perf_counter() >= deadline:
+                self.reason = "salvage route budget exhausted"
+                return None
+            if (math.dist(point,cube["pos"]) < max(.1,pickup-2.4) and
+                    self.world.body_clear(*point,radius+.2,height,stats["step_up"])):
+                anchor = point
+                break
+        if anchor is None:
+            self.reason = "no growth-safe exact pickup anchor"
+            return None
+        key = (tuple(anchor),round(radius,3),round(height,3))
+        if key != self._route_key:
+            nav = copy.copy(self.navigator)
+            nav.links, nav.clearance, nav.path = {}, {}, []
+            nav.goal, nav.search, nav.search_done = None, None, True
+            nav.radius, nav.height, nav.step_up = radius+.2, height, stats["step_up"]
+            nav.body_changed = True
+            self._route_key, self._route_nav, self._route_points = key, nav, None
+        if self._route_points is None:
+            # Existing A* has a hard expansion cap and <=9ms search slice.
+            # A slice exceeding our remaining evaluation budget is retained
+            # for the next observation, and cannot authorize movement now.
+            if deadline-time.perf_counter() < tuning.PLAN_SECONDS+.001:
+                self.reason = "insufficient salvage budget for an A* slice"
+                return None
+            route = self._route_nav.plan(me["pos"], anchor, circle, [])
+            if not self._route_nav.search_done:
+                self.reason = "bounded salvage detour search continues"
+                return None
+            if not route or not self.world.walk_clear(route[-1],anchor,radius+.2,height,
+                    stats["step_up"],stats["max_slope_deg"]):
+                self.reason = "detour has no exact body-safe pickup connection"
+                return None
+            self._route_points = list(route)+[anchor]
+        points = self._route_points
+        closest = min(range(len(points)), key=lambda i:distance(me["pos"],points[i]))
+        remaining = points[closest:]
+        for i in range(min(5,len(remaining))-1,-1,-1):
+            if time.perf_counter() >= deadline:
+                self.reason = "salvage route budget exhausted"
+                return None
+            if self.world.walk_clear(me["pos"],remaining[i],radius+.2,height,
+                                     stats["step_up"],stats["max_slope_deg"]):
+                remaining = remaining[i:]
+                break
+        path = [tuple(me["pos"])]+remaining
+        if sum(distance(a,b) for a,b in zip(path,path[1:])) > self.MAX_DISTANCE:
+            self.reason = "post-pickup body cannot safely traverse or exit this detour"
+            return None
+        for a,b in zip(path,path[1:]):
+            for start,end in ((a,b),(b,a)):
+                if time.perf_counter() >= deadline:
+                    self.reason = "salvage route budget exhausted"
+                    return None
+                if not self.world.walk_clear(start,end,radius+.2,height,stats["step_up"],stats["max_slope_deg"]):
+                    self.reason = "post-pickup body cannot safely traverse or exit this detour"
+                    return None
+        if time.perf_counter() >= deadline:
+            self.reason = "salvage route budget exhausted"
+            return None
+        return remaining, anchor, radius, height, len(known)
+
+    def _travel_route(self, me, points, radius, height, deadline):
+        """Conservative 20Hz acceleration/energy route check, with real terrain."""
+        stats, energy = me["stats"], me["energy"]
+        p, path = list(me["pos"]), [tuple(me["pos"])]
+        vx, vy = me["vel"][:2]
+        remaining = list(points)
+        for tick in range(1,141):
+            if time.perf_counter() >= deadline:
+                return math.inf,path,energy
+            # Smooth only across a proved whole-body ground corridor.
+            if distance(p,remaining[0]) < 5 and len(remaining)>1:
+                for i in range(min(5,len(remaining))-1,0,-1):
+                    if time.perf_counter() >= deadline:
+                        return math.inf,path,energy
+                    if self.world.walk_clear(p,remaining[i],radius+.2,height,stats["step_up"],stats["max_slope_deg"]):
+                        remaining = remaining[i:]
+                        break
+            goal = remaining[0]
+            direction = unit(goal[0]-p[0],goal[1]-p[1])
+            boost = energy-stats["boost_drain"]*.05 >= self.RESERVE_ENERGY
+            speed = stats["boost_speed"] if boost else stats["walk_speed"]
+            dx,dy = direction[0]*speed-vx,direction[1]*speed-vy
+            fraction = min(1,stats["ground_accel"]*.05/max(1e-9,math.hypot(dx,dy)))
+            vx,vy = vx+dx*fraction,vy+dy*fraction
+            x,y = p[0]+vx*.05,p[1]+vy*.05
+            q = [x,y,self.world.ground(x,y)]
+            if not self.world.walk_clear(p,q,radius+.2,height,stats["step_up"],stats["max_slope_deg"]):
+                return math.inf,path,energy
+            p=q;path.append(tuple(p))
+            if boost:energy-=stats["boost_drain"]*.05
+            if distance(p,goal)<1.2:
+                if len(remaining)==1:
+                    return tick*.05+.2,path,energy
+                remaining.pop(0)
+        return math.inf,path,energy
 
     def _travel(self, me, goal):
         stats = me["stats"]
@@ -79,7 +218,7 @@ class KillSalvage:
                 return tick*.05, path, energy
         return math.inf, path, energy
 
-    def _projectile_damage(self, obs, path, future_radius, future_height, deadline):
+    def _projectile_damage(self, obs, path, future_radius, future_height, deadline, full_path=False):
         me = obs["self"]
         damage = 0.0
         for projectile in obs["projectiles"]:
@@ -92,7 +231,7 @@ class KillSalvage:
             else:
                 shot_damage = stats["damage"]+(stats.get("splash", 0) if mortar else 0)
             radius = future_radius+(stats.get("splash_radius", 0) if mortar else .4)
-            for i in range(1, min(len(path), 26)):
+            for i in range(1, len(path) if full_path else min(len(path), 26)):
                 a, b = (i-1)*.05, i*.05
                 pp, velocity = projectile["pos"], projectile["vel"]
                 bullet_a = [pp[j]+velocity[j]*a for j in range(3)]
@@ -113,15 +252,28 @@ class KillSalvage:
                         break
         return damage*max(0, 1-me["stats"].get("armor", 0))
 
-    def _future_damage(self, obs, path, eta, enemies, deadline):
+    def _future_damage(self, obs, path, eta, enemies, deadline, full_path=False):
         me = obs["self"]
         total = 0.0
-        points = [path[round((len(path)-1)*f)] for f in (0, .33, .66, 1)]
+        points = path if full_path else [path[round((len(path)-1)*f)] for f in (0, .33, .66, 1)]
         for enemy, confidence in enemies:
             if time.perf_counter() >= deadline:
                 return math.inf
             npc = enemy.get("kind") == "npc"
-            if npc:
+            if full_path:
+                visible = False
+                for point in points:
+                    if time.perf_counter() >= deadline:
+                        return math.inf
+                    if npc:
+                        origin = [*enemy["pos"][:2],enemy["pos"][2]+self.config["npc"]["height"]*.7]
+                        seen = self.world.line_clear(origin,[*point[:2],point[2]+me["stats"]["height"]*.5])
+                    else:
+                        seen = firing_lane(self.world,self.config,point,me,enemy)[0]
+                    if seen:
+                        visible=True
+                        break
+            elif npc:
                 origin = [*enemy["pos"][:2], enemy["pos"][2]+self.config["npc"]["height"]*.7]
                 visible = any(self.world.line_clear(origin, [*point[:2], point[2]+me["stats"]["height"]*.5])
                               for point in points)
@@ -169,6 +321,7 @@ class KillSalvage:
         me, now = obs["self"], obs["t"]
         previous = self.active_cube
         self.goal, self.sprint, self.state = None, False, "idle"
+        self.waypoint, self.routed = None, False
         self.risk = {}
         self.beacons = [beacon for beacon in self.beacons if now-beacon["t"] < self.BEACON_SECONDS]
         for cube in obs["cubes"]:
@@ -204,8 +357,15 @@ class KillSalvage:
         eligible.sort(key=lambda cube: (cube["id"] != previous, distance(me["pos"], cube["pos"])))
         if not eligible:
             return self._reject("no known available cube near the verified kill")
-        deadline = time.perf_counter()+self.SEARCH_SECONDS
-        for cube in eligible[:6]:
+        started = time.perf_counter()
+        deadline = started+self.SEARCH_SECONDS
+        # Keep all old direct candidates first. Only one blocked candidate
+        # gets a bounded detour slice per observation; a bundle's many IDs
+        # must not multiply trajectory work after a definitive risk rejection.
+        attempts = [(cube,False) for cube in eligible[:6]]+[(cube,True) for cube in eligible[:1]]
+        for cube,allow_route in attempts:
+            if allow_route:
+                deadline = started+self.SEARCH_SECONDS+.010
             if time.perf_counter() >= deadline:
                 return self._reject("salvage route budget exhausted")
             goal = tuple(cube["pos"][:2])
@@ -219,16 +379,43 @@ class KillSalvage:
             possible = [item for item in cubes if segment_distance_sq(
                 item["pos"][0], item["pos"][1], me["pos"], goal) <= pickup*pickup and
                 abs(item["pos"][2]-self.world.ground(*item["pos"][:2])) < 4]
-            old_scale = 1+self.config["cubes"].get("size_per_cube", .05)*me["cubes"]
-            new_scale = 1+self.config["cubes"].get("size_per_cube", .05)*(me["cubes"]+len(possible))
-            future_radius, future_height = stats["radius"]*new_scale/old_scale, stats["height"]*new_scale/old_scale
-            if not self.world.walk_clear(me["pos"], ground_goal, future_radius+.2, future_height,
-                                         stats["step_up"], stats["max_slope_deg"]):
+            future_radius, future_height = self._growth(me,len(possible))
+            routed = False
+            waypoint = None
+            direct = self.world.walk_clear(me["pos"], ground_goal, future_radius+.2, future_height,
+                                          stats["step_up"], stats["max_slope_deg"])
+            if allow_route and direct:
+                continue  # Every direct candidate was already evaluated first.
+            if not direct:
                 self.reason = "post-pickup body cannot safely traverse or exit this corridor"
-                continue
-            eta, path, energy_left = self._travel(me, goal)
+                if not allow_route:
+                    continue
+                detour = self._detour(me,cube,cubes,circle,deadline)
+                if detour is None:
+                    # Preserve one bounded A* search across observations,
+                    # rather than restart for every cube in the same bundle.
+                    if "search continues" in self.reason or "budget" in self.reason:
+                        return self._reject(self.reason)
+                    continue
+                points, ground_goal, future_radius, future_height, growth_bound = detour
+                possible = [item for item in cubes if any(segment_distance_sq(
+                    item["pos"][0],item["pos"][1],a,b)<=pickup*pickup
+                    for a,b in zip([me["pos"]]+points,points)) and
+                    abs(item["pos"][2]-self.world.ground(*item["pos"][:2]))<4]
+                # Keep the conservative all-local-known growth body for the
+                # rollout too: acceleration/gait may collect a cube beside a
+                # nominal straight segment before reaching the reward.
+                eta,path,energy_left = self._travel_route(me,points,future_radius,future_height,deadline)
+                if time.perf_counter() >= deadline:
+                    return self._reject("salvage route budget exhausted")
+                routed,waypoint,goal = True,points[0],tuple(ground_goal[:2])
+            else:
+                eta, path, energy_left = self._travel(me, goal)
             if eta > self.MAX_SECONDS:
                 self.reason = "kill reward cannot be reached before the short window closes"
+                continue
+            if routed and any(distance(point,circle[0]) >= circle[1]-margin for point in path):
+                self.reason = "salvage detour leaves the predicted safe zone"
                 continue
             expiry = max(beacon["t"]+self.BEACON_SECONDS for beacon in self.beacons
                          if distance(cube["pos"], beacon["pos"]) <= 12 and
@@ -248,20 +435,27 @@ class KillSalvage:
             base_hp = me["max_hp"]/(1+self.config["cubes"].get("hp_per_cube", .04)*min(
                 me["cubes"], self.config["cubes"].get("stat_cap", 10)))
             healing = capped*base_hp*self.config["cubes"].get("hp_per_cube", .04)
-            projectile = self._projectile_damage(obs, path, future_radius, future_height, deadline)
+            projectile = self._projectile_damage(obs, path, future_radius, future_height, deadline, full_path=routed)
             npcs = [(npc, 1) for npc in obs["mechs"] if npc.get("kind") == "npc"]
-            future = self._future_damage(obs, path, eta, enemies+npcs, deadline)
+            future = self._future_damage(obs, path, eta, enemies+npcs, deadline, full_path=routed)
             remaining = me["hp"]+healing-projectile-future
             self.risk = {"eta": eta, "healing": healing, "projectile_damage": projectile,
                          "future_damage": future, "remaining_hp": remaining,
                          "race_margin": race, "growth_cubes": len(possible),
                          "future_radius": future_radius, "escape_energy": energy_left}
+            if routed:
+                self.risk["routed"] = True
+                self.risk["growth_bound"] = growth_bound
             if time.perf_counter() >= deadline:
                 return self._reject("salvage route budget exhausted")
             if remaining < max(250, me["max_hp"]*.25):
                 self.reason = "estimated pickup HP is below the next-battle reserve"
                 continue
+            if routed and projectile+future >= me["hp"]-max(40,me["max_hp"]*.05):
+                self.reason = "detour damage can be lethal before pickup healing arrives"
+                continue
             self.goal, self.active_cube, self.state = goal, cube["id"], "collect"
+            self.waypoint,self.routed = waypoint,routed
             self.sprint = me["energy"] > self.RESERVE_ENERGY+stats["boost_drain"]*.1
             self.reason = "commit to the verified kill reward within HP and arrival budgets"
             return self.goal
