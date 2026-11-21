@@ -17,6 +17,8 @@ from .salvage import KillSalvage
 from .opener import Opener
 from .duel_commitment import DuelCommitment
 from .quiet_window import QuietWindow
+from .reload_arm import ReloadArm
+from .upgrade_economy import UpgradeEconomy
 
 
 def future_circle(zone, now, seconds):
@@ -52,6 +54,9 @@ class Bot:
         self.opener = Opener(self.world, self.config)
         self.commitment = DuelCommitment(self.config)
         self.quiet_window = QuietWindow(self.config)
+        self.reload_arm = ReloadArm(self.world, self.config)
+        self.arm_active = False
+        self.upgrade_economy = UpgradeEconomy(self.config, tuning.UPGRADE_VALUE)
         self.motion = GroundSteering(self.world, self.config)
         self.cover_active = False
         self.cover_watch_goal = None
@@ -343,6 +348,7 @@ class Bot:
         active = self.active_enemy_ids(obs)
         self.select_mode(obs, active)
         threats = sorted(self.threats(now), key=lambda ec: distance(me["pos"],ec[0]["pos"]))
+        self.reload_arm.update(obs)
         salvage_goal = self.salvage.choose(
             obs, self.loot.get("cubes"), threats, self.shelter_circle(obs),
             emergency=not me["in_zone"] or
@@ -369,9 +375,17 @@ class Bot:
                                          recovering=self.recovering)
         elif self.opener.current is not None:
             self.opener.cancel("existing combat action takes priority")
+        arming = None
+        had_arming = self.arm_active
+        if salvage_goal is None and opening is None and not charging and not repairing:
+            arming = self.reload_arm.choose(obs, threats, self.shelter_circle(obs),
+                                            recovering=self.recovering)
+        elif self.reload_arm.current is not None:
+            self.reload_arm.cancel("higher priority resource or held combat action")
+        self.arm_active = arming is not None
         cover_goal = None
         had_cover = self.cover_active
-        if (salvage_goal is None and opening is None and duel is None and
+        if (salvage_goal is None and opening is None and arming is None and duel is None and
                 (self.recovering or self.mode == "evade")):
             cover_goal = self.cover.choose(obs, threats, self.shelter_circle(obs),
                                            recovering=self.recovering)
@@ -406,6 +420,12 @@ class Bot:
             self.next_goal = now+tuning.GOAL_INTERVAL
             self.objective = None
             self.jet_until = -1
+        elif arming is not None:
+            self.cover.clear("short reload equipment route owns movement")
+            self.goal, self.goal_kind = tuple(arming.goal[:2]), "reload weapon"
+            self.next_goal = now+tuning.GOAL_INTERVAL
+            self.objective = None
+            self.jet_until = -1
         elif self.cover_active:
             self.goal, self.goal_kind = cover_goal, "cover"
             self.objective = None
@@ -413,11 +433,11 @@ class Bot:
             self.jet_until = -1  # this is a ground refuge, not a flight destination
             if self.recovering:
                 self.mode, self.duel = "recover", None
-        elif had_cover:
+        elif had_cover or had_arming:
             self.goal = None
             self.next_goal = -1
         retreat = self.recovering and self.mode != "fight"
-        if (salvage_goal is None and opening is None and not self.cover_active and
+        if (salvage_goal is None and opening is None and arming is None and not self.cover_active and
                 (self.goal is None or old_mode != self.mode or now >= self.next_goal or not me["in_zone"])):
             self.goal, self.goal_kind, self.circle = self.choose_goal(obs, retreat, threats)
             self.next_goal = now+tuning.GOAL_INTERVAL
@@ -427,6 +447,16 @@ class Bot:
             move, boost = self.motion.choose(obs, waypoint, threats, "opening", 75, False,
                                              sprinting=opening.sprint, cover=False,
                                              circle=future_circle(obs["zone"], now, 2))
+            jump, self.sprinting = False, boost
+            self.stuck_since = None
+            self.last_position = list(me["pos"])
+        elif arming is not None:
+            if arming.move is not None:
+                move, boost = list(arming.move), False
+            else:
+                move, boost = self.motion.choose(obs, arming.waypoint, threats, "salvage", 75, False,
+                                                 sprinting=False, cover=False,
+                                                 circle=future_circle(obs["zone"], now, 2))
             jump, self.sprinting = False, boost
             self.stuck_since = None
             self.last_position = list(me["pos"])
@@ -482,8 +512,10 @@ class Bot:
             quiet = target is None and not any(distance(me["pos"],e["pos"]) < 150 for e,c in threats)
             action["reload"] = gun.get("ammo",0) <= 0 or (quiet and gun.get("ammo",0) < gun["stats"]["mag"]*0.65)
         if obs.get("offer"):
-            choices = obs["offer"]["choices"]
-            action["pick"] = max(range(len(choices)), key=lambda i: tuning.UPGRADE_VALUE.get(choices[i]["id"], 0))
+            pick = self.upgrade_economy.choose(obs, target=self.duel, recovering=self.recovering,
+                                               sheltered=repairing)
+            if pick is not None:
+                action["pick"] = pick
         held = [w["kind"] for w in me["weapons"] if w]
         second = me["weapons"][1]
         if second is None or second["kind"] == "mortar":
@@ -495,6 +527,8 @@ class Bot:
                 action["take"] = max(near, key=lambda p: self.weapon_value(p["kind"]))["id"]
                 if second:
                     action["drop"] = 1
+        if arming is not None and arming.take is not None and second is None:
+            action["take"] = arming.take
         if self.debug:
             debug_goal = self.goal or me["pos"][:2]
             action["debug"] = {"label": f"{self.mode}/{self.goal_kind} | HP {me['hp']:.0f}",
