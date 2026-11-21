@@ -1,5 +1,33 @@
 # Validation performed
 
+## Revision 4: body-size-only checks
+
+Commit `55e2f3b557db4e93df80f4b7ee0fa2f749327a07` passed the
+[Linux workflow](https://github.com/Muallim718/oval-sentinel/actions/runs/44916162390).
+Only `sentinel/navigation.py` and one integration call in `sentinel/strategy.py`
+changed among runtime sources relative to revision 2. Combat, loot, upgrades,
+recovery, and movement preferences remained unchanged.
+
+- All 39 behavioral tests passed locally and on Linux.
+- Restricted-container official checker: 300/300 on-time answers, zero misses;
+  p50 0.7 ms, p90 2.1 ms, p99 7.8 ms, maximum 13.0 ms on that runner.
+- Synthetic crowded-input benchmark on the Linux host: p99 19.91 ms,
+  maximum 24.91 ms, zero decisions above 50 ms.
+- Additional six-size growing-body benchmark on the Linux host: p99 23.84 ms,
+  maximum 24.81 ms, zero decisions above 50 ms.
+- Committed source: 35 files, 2,114,455 bytes, below 20 MB.
+
+The synthetic benchmarks were outside the restricted container; the official
+stream was checked inside it. Neither benchmark predicts scored placement.
+
+### Revision 4 scored outcome
+
+Receipt `BB-1B78B4C1`, submitted on 2026-11-21 at 9:53 AM EST, scored **3.21**
+on that verified commit. This is +0.15 displayed points over revision 2's 3.06;
+the implied average placement is approximately 12.79. The observed ranking was
+169 of 251 teams. The site selected revision 4 as the best entry. No hourly
+slots remained; the next was shown at 10:12 AM EST. The isolated change is retained.
+
 ## Revision 3 checks
 
 **Experimental policy, not the default:** it scored 2.58 and was reverted in favor
@@ -25,7 +53,7 @@ The feedback models are limited tests, not the authoritative match engine.
 Receipt `BB-7E1019E7` was submitted on 2026-11-21 at 9:42 AM EST and completed
 with 2.58 placement points (-0.48 compared with revision 2). The site kept receipt
 `BB-F2A7BF5E` selected as the best entry. One rolling-hour attempt remained.
-After reverting the experiment, the runtime sources were compared against
+At the revision 3 rollback, the runtime sources were compared against
 `0e193ba66fdca8f9b075ffbb1fc6a32b46b4a7f7`: `bot.py`, `mechfight.py`, and all
 `sentinel/` files match the proven revision 2 version exactly.
 

@@ -5,8 +5,9 @@ Receipt `BB-7E1019E7` scored commit `865fdb89536051f9df6a5ed65990dcb55dafa28f`.
 The site retained revision 2 as the selected best entry. One hourly attempt
 remained immediately afterward.
 
-The default branch restores the exact revision 2 bot code. The full experiment
-and its tests remain public on
+After this result the default branch was restored to revision 2. The subsequent
+revision 4 isolates body-size-aware routing and scored 3.21. The full revision 3
+experiment and its tests remain public on
 [`experiment/roof-recovery`](https://github.com/Muallim718/oval-sentinel/tree/experiment/roof-recovery).
 This document records an experiment that did not improve the score, not the
 default policy's behavior.

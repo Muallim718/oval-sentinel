@@ -29,5 +29,21 @@ within budget, with zero malformed messages or wrong ticks. The growing-body
 crowded-input benchmark exercises six sizes while providing 15 opponents and
 32 projectiles. These synthetic inputs do not simulate a match or predict score.
 
-This experiment changes only one gameplay mechanism. The scored comparison
-against revision 2 will determine whether it is worth adopting.
+## Scored outcome
+
+Receipt `BB-1B78B4C1` scored commit `55e2f3b557db4e93df80f4b7ee0fa2f749327a07`
+at **3.21**, up from revision 2's **3.06** (+0.15 displayed placement points).
+The site selected revision 4 as the new best entry. The observed board position
+was 169 of 251 teams. The four hourly slots were exhausted; the next one was
+shown as becoming available at 10:12 AM EST.
+
+The [Linux workflow](https://github.com/Muallim718/oval-sentinel/actions/runs/44916162390)
+passed 39 tests and the restricted-container official check: 300/300 on-time
+answers, maximum response 13.0 ms. The growing-body synthetic benchmark peaked
+at 24.81 ms on the Linux host, outside the restricted container.
+
+The body-size-only change is retained on the default branch. Combat and other
+strategy behavior still matches revision 2. This is a modest aggregate improvement
+on the fixed practice set, not proof of statistical significance, causation in
+individual matches, or an improvement on unseen final seeds. No match-level
+breakdown was exposed.

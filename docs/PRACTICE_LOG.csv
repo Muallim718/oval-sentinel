@@ -2,3 +2,4 @@ commit,submitted_at,practice_score,average_place,change,observed_failures
 d8e307a9dc89bf858edb40993daf15581a9afe2b,2026-11-21T09:12-05:00,1.50,14.50,Initial Oval Sentinel; receipt BB-3FEACC8C,Score summary only; no match-level diagnosis available
 0e193ba66fdca8f9b075ffbb1fc6a32b46b4a7f7,2026-11-21T09:28-05:00,3.06,12.94,Revision 2 sustained fire and committed objectives; receipt BB-F2A7BF5E,Score summary only; no match-level diagnosis available
 865fdb89536051f9df6a5ed65990dcb55dafa28f,2026-11-21T09:42-05:00,2.58,13.42,Revision 3 roof recovery and matchup estimates; receipt BB-7E1019E7,Regressed by 0.48; cause not isolated; revision 2 remains selected
+55e2f3b557db4e93df80f4b7ee0fa2f749327a07,2026-11-21T09:53-05:00,3.21,12.79,Revision 4 body-size-aware routing only; receipt BB-1B78B4C1,Improved by 0.15 over revision 2; selected as best; no match-level details
