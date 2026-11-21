@@ -1,0 +1,14 @@
+name: Bot checks
+on: [push, pull_request, workflow_dispatch]
+permissions:
+  contents: read
+jobs:
+  linux-sandbox:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Check submitted commit size
+        run: python3 tools/package.py --check-commit
+      - name: Unit, protocol, latency, and restricted container checks
+        run: python3 tools/verify.py --docker
