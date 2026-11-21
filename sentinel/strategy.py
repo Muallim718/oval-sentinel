@@ -19,6 +19,7 @@ from .duel_commitment import DuelCommitment
 from .quiet_window import QuietWindow
 from .reload_arm import ReloadArm
 from .upgrade_economy import UpgradeEconomy
+from .arc_retreat import ArcRetreat
 
 
 def future_circle(zone, now, seconds):
@@ -57,6 +58,7 @@ class Bot:
         self.reload_arm = ReloadArm(self.world, self.config)
         self.arm_active = False
         self.upgrade_economy = UpgradeEconomy(self.config, tuning.UPGRADE_VALUE)
+        self.arc_retreat = ArcRetreat(self.world, self.config)
         self.motion = GroundSteering(self.world, self.config)
         self.cover_active = False
         self.cover_watch_goal = None
@@ -529,6 +531,12 @@ class Bot:
                     action["drop"] = 1
         if arming is not None and arming.take is not None and second is None:
             action["take"] = arming.take
+        action["move"], action["boost"] = self.arc_retreat.choose(
+            obs, action["move"], action["boost"], circle=future_circle(obs["zone"], now, 2),
+            fire=action["fire"], active_ids=active, threats=threats,
+            reserved=(self.mode != "fight" or self.cover_active or repairing or opening is not None or
+                      arming is not None or salvage_goal is not None or jump or now < self.jet_until or
+                      "take" in action or "drop" in action))
         if self.debug:
             debug_goal = self.goal or me["pos"][:2]
             action["debug"] = {"label": f"{self.mode}/{self.goal_kind} | HP {me['hp']:.0f}",
