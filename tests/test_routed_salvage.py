@@ -56,6 +56,20 @@ class RoutedSalvageTests(unittest.TestCase):
         self.assertIsNone(self.nav.search)
         self.assertFalse(self.nav.body_changed)
 
+    def test_small_blocked_bundle_keeps_the_ordinary_direct_policy(self):
+        self.cubes = self.obs["cubes"] = self.cubes[:3]
+        with patch.object(self.salvage, "_detour", side_effect=AssertionError("small bundle cannot route")):
+            self.assertIsNone(self.ready())
+        self.assertFalse(self.salvage.routed)
+        self.assertIsNone(self.salvage.waypoint)
+
+    def test_coincident_cubes_share_one_blocked_direct_geometry_check(self):
+        with (patch.object(self.world, "walk_clear", return_value=False) as direct,
+              patch.object(self.salvage, "_detour", return_value=None) as detour):
+            self.assertIsNone(self.choose())
+        self.assertEqual(direct.call_count, 1)
+        self.assertEqual(detour.call_count, 1)
+
     def test_expiry_covers_entire_detour_not_euclidean_approach(self):
         self.obs['t']=15
         self.assertIsNone(self.ready())

@@ -359,16 +359,27 @@ class KillSalvage:
             return self._reject("no known available cube near the verified kill")
         started = time.perf_counter()
         deadline = started+self.SEARCH_SECONDS
-        # Keep all old direct candidates first. Only one blocked candidate
-        # gets a bounded detour slice per observation; a bundle's many IDs
-        # must not multiply trajectory work after a definitive risk rejection.
-        attempts = [(cube,False) for cube in eligible[:6]]+[(cube,True) for cube in eligible[:1]]
+        # Spend detour time on a substantial confirmed bundle. Four compact
+        # cubes can materially change the next fight and deny the same power
+        # to a pursuer. Every original direct candidate still comes first.
+        attempts = [(cube, False) for cube in eligible[:6]]
+        pickup = self.config["cubes"]["pickup_radius"]
+        if len(eligible) >= 4:
+            for cube in eligible[:6]:
+                bundle = sum(distance(cube["pos"], other["pos"]) <= pickup * .75
+                             for other in eligible)
+                if bundle >= 4:
+                    attempts.append((cube, True))
+                    break
+        blocked_goals = set()
         for cube,allow_route in attempts:
             if allow_route:
                 deadline = started+self.SEARCH_SECONDS+.010
             if time.perf_counter() >= deadline:
                 return self._reject("salvage route budget exhausted")
             goal = tuple(cube["pos"][:2])
+            if goal in blocked_goals and not allow_route:
+                continue
             margin = min(12, max(4, circle[1]*.1))
             if distance(goal, circle[0]) >= circle[1]-margin:
                 self.reason = "kill reward is outside the predicted safe zone"
@@ -382,13 +393,14 @@ class KillSalvage:
             future_radius, future_height = self._growth(me,len(possible))
             routed = False
             waypoint = None
-            direct = self.world.walk_clear(me["pos"], ground_goal, future_radius+.2, future_height,
-                                          stats["step_up"], stats["max_slope_deg"])
+            direct = goal not in blocked_goals and self.world.walk_clear(
+                me["pos"], ground_goal, future_radius+.2, future_height, stats["step_up"], stats["max_slope_deg"])
             if allow_route and direct:
                 continue  # Every direct candidate was already evaluated first.
             if not direct:
                 self.reason = "post-pickup body cannot safely traverse or exit this corridor"
                 if not allow_route:
+                    blocked_goals.add(goal)
                     continue
                 detour = self._detour(me,cube,cubes,circle,deadline)
                 if detour is None:
