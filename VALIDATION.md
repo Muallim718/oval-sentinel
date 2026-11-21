@@ -1,8 +1,16 @@
 # Validation performed
 
-## Current default, revision 38
+## Current default, revision 48
 
-The selected **4.31** controller separates escape movement from attack
+The selected **4.50** controller combines short combat gear routes with
+live early gun and repair upgrade choices. All 172 tests passed locally
+and on Linux. The restricted container answered 300/300 on time, with
+p99 11.7 ms and a 13.2 ms maximum.
+[Early combat design and score](docs/REVISION_48.md)
+
+## Revision 38: separate escape control and combat
+
+The **4.31** controller separates escape movement from attack
 permission. Verified shelter or observed regeneration reserves a quiet
 repair window. All 137 tests passed locally and on Linux. The restricted
 container answered 300/300 on time, with p99 9.1 ms and an 11.4 ms maximum.

@@ -107,6 +107,11 @@ unlikely to interrupt the pickup. It tracks a farm target until damage
 confirms the kill, then looks for the dropped reward. A fast quiet scan helps
 find the first resource sooner. [Opening examples](REVISION_16.md)
 
+In an isolated fight, a short checked route can also reach a visible
+secondary while the gun keeps aiming and shooting. It checks incoming
+pressure through the equip delay and yields to a protected repair window.
+[Combat acquisition examples](REVISION_47.md)
+
 After a confirmed kill the bot briefly associates observed cube IDs with the
 fight. It can collect them while recovering when a direct route beats the
 nearest known opponent and the estimated damage leaves a useful health reserve.
@@ -119,9 +124,11 @@ must be within both the horizontal pickup radius and the fixed 4-meter vertical
 pickup limit before a `take` action is sent. A nearby unobstructed supply drop can
 be worth pursuing for healing and cubes, but the bot avoids known crowds.
 
-Upgrade ordering favors servos, plating, armor, gun damage/rate, and repair
-nanites. Exact effects still come from the
-server. The preference order is deliberately isolated in `tuning.py`.
+Upgrade ordering ordinarily favors movement and armor. For an early gun-only
+fight, Sentinel can compare the first drum with offered rate and damage
+upgrades using actual magazine and reload clocks. In protected recovery it
+can prefer nanites if the shorter repair clock restores enough HP.
+[Upgrade choices and timing](UPGRADE_ECONOMY.md)
 
 ## Honest limits
 

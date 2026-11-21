@@ -7,12 +7,12 @@ library only. The `Dockerfile` is already at the repository root.
 
 Public repository: [Muallim718/oval-sentinel](https://github.com/Muallim718/oval-sentinel)
 
-**Best scored entry is 4.31 placement points.** Oval Sentinel can keep firing
-at observed pursuers while it moves to cover. Actual shelter or regeneration
-takes priority once a quiet repair window opens. Receipt `BB-D2773F9B` scored
-commit `227cea87a7f24da9824d644b15f8524710f5c211` on 2026-11-21 at 5:34 PM EST.
-The site selected it automatically. The `score-4.31` tag preserves the exact
-submission. [Combat recovery and practice result](docs/REVISION_38.md)
+**Best scored entry is 4.50 placement points.** Oval Sentinel can arm during
+an early fight and uses observed ammo and cooldowns to choose a first gun
+upgrade. Receipt `BB-17BBAF1E` scored commit
+`4c1771bffe8fd491d70ca2be65aa3fc0884db712` on 2026-11-21 at 6:10 PM EST.
+The site selected it automatically. The `score-4.50` tag preserves the exact
+submission. [Early combat and practice result](docs/REVISION_48.md)
 
 | Version | Change | Practice score |
 | --- | --- | ---: |
@@ -31,12 +31,13 @@ submission. [Combat recovery and practice result](docs/REVISION_38.md)
 | [23](docs/REVISION_23.md) | Repair and rearm during the gap after a kill | 4.00 |
 | [35](docs/REVISION_35.md) | Commit to fights with observed attackers | **4.19** |
 | [38](docs/REVISION_38.md) | Keep fighting while escaping and protect actual repairs | **4.31** |
+| [48](docs/REVISION_48.md) | Secure a secondary or a better first gun magazine | **4.50** |
 
-**The default runtime matches the 4.31 controller.** The exact source and
+**The default runtime matches the 4.50 controller.** The exact source and
 tests for earlier revisions remain public in their tags and experiment branches.
 
-**Linux sandbox verified.** Revision 38 passed 137 tests. The official
-restricted-container check received 300/300 on-time replies, with an 11.4 ms
+**Linux sandbox verified.** Revision 48 passed 172 tests. The official
+restricted-container check received 300/300 on-time replies, with a 13.2 ms
 maximum response. [Validation and experimental results](VALIDATION.md)
 
 **Start here:** run the checks below, read [the strategy](docs/STRATEGY.md), and
@@ -88,7 +89,8 @@ Think of each decision as five questions:
    nearby crates, and uncontested supply drops.
 4. **Can I hit a worthwhile target?** Lead bullets, respect buildings and range,
    and wait for the actual torso aim before firing.
-5. **Which upgrade helps me survive?** Prefer movement, regeneration, and armor.
+5. **Which upgrade helps me survive?** Compare the early gun clock or a quiet
+   repair opportunity with the usual mobility and armor choices.
 
 | File | What you will find |
 | --- | --- |
@@ -96,6 +98,8 @@ Think of each decision as five questions:
 | `sentinel/strategy.py` | Those five decisions; read this first. |
 | `sentinel/tuning.py` | Strategy preferences and upgrade priorities. |
 | `sentinel/memory.py` | Previously observed loot and stale-item removal. |
+| `sentinel/reload_arm.py` | Short, checked routes to a useful secondary during combat. |
+| `sentinel/upgrade_economy.py` | First gun and protected repair upgrade choices. |
 | `sentinel/cover.py` | Wall-side shelters, body-wide firing lanes, commitment, and rejection. |
 | `sentinel/movement.py` | Acceleration-aware command rollouts, braking, exposure, and dodging. |
 | `sentinel/navigation.py` | A* routes around buildings; searches can continue across decisions. |

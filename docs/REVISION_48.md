@@ -18,3 +18,12 @@ first hunter in each. With an identical one-cube reward and first upgrade
 offer, the drum candidate defeats the first gunner 2.7 seconds earlier
 and with 162 more HP in both tested seeds. Those tests use independent
 physical scenarios and provide no practice placement estimate.
+
+Exact commit `4c1771bffe8fd491d70ca2be65aa3fc0884db712` passed
+[Linux and the restricted container](https://github.com/Muallim718/oval-sentinel/actions/runs/44960178611).
+All 172 tests passed. The container answered 300 of 300 observations
+on time, with p99 11.7 ms and a 13.2 ms maximum.
+
+Practice receipt `BB-17BBAF1E` scored **4.50** on November 21, 2026 at
+6:10 PM EST. This raised the selected score by 0.19 and corresponds to
+11.50 mean placement across 48 matches. The site selected it automatically.
