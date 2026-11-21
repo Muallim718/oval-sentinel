@@ -15,6 +15,7 @@ from .cover import CoverPlanner
 from .movement import GroundSteering
 from .salvage import KillSalvage
 from .opener import Opener
+from .duel_commitment import DuelCommitment
 
 
 def future_circle(zone, now, seconds):
@@ -48,6 +49,7 @@ class Bot:
         self.cover = CoverPlanner(self.world, self.config)
         self.salvage = KillSalvage(self.world, self.config)
         self.opener = Opener(self.world, self.config)
+        self.commitment = DuelCommitment(self.config)
         self.motion = GroundSteering(self.world, self.config)
         self.cover_active = False
         self.cover_watch_goal = None
@@ -251,14 +253,14 @@ class Bot:
         horizon = max(16, min(45, 12+remaining/me["stats"]["walk_speed"]*1.6))
         return future_circle(zone, obs["t"], horizon)
 
-    def steer(self, obs, waypoint, threats, retreat):
+    def steer(self, obs, waypoint, threats, retreat, closing=False):
         """Roll out bounded motion commands, then retain the existing jet escape."""
         me, now = obs["self"], obs["t"]
         p, stats = me["pos"], me["stats"]
         danger = min((distance(p, e["pos"]) for e, c in threats), default=math.inf)
         zone_ahead = future_circle(obs["zone"], now, 6)
         must_rotate = distance(p, zone_ahead[0]) > zone_ahead[1]-12
-        urgent = (not me["in_zone"] or must_rotate or
+        urgent = (closing or not me["in_zone"] or must_rotate or
                   (danger < 80 and self.mode != "fight") or
                   (retreat and now-self.last_damage < 3))
         if self.mode == "salvage":
@@ -315,16 +317,29 @@ class Bot:
             obs, self.loot.get("cubes"), threats, self.shelter_circle(obs),
             emergency=not me["in_zone"] or
             (me["hp"] < me["max_hp"]*.23 and now-self.last_weapon_damage < .6))
+        previous_commitment = self.commitment.target_id
+        repairing_in_cover = (self.recovering and self.cover_active and self.cover.sheltered and
+                              now-self.last_weapon_damage > .5)
+        duel = self.commitment.choose(obs, threats, future_circle(obs["zone"], now, 10),
+                                      self.world, sheltered=repairing_in_cover)
+        if salvage_goal is not None:
+            duel = None
+        if duel is not None:
+            self.mode, self.duel = "fight", duel.enemy
+            self.fight_range = duel.range
+        if previous_commitment != self.commitment.target_id:
+            self.next_goal = -1
         opening = None
         charging = any(w and w["kind"] == "laser" and w.get("charge", 0) > 0 for w in me["weapons"])
-        if salvage_goal is None and not charging:
+        if salvage_goal is None and duel is None and not charging:
             opening = self.opener.choose(obs, threats, self.shelter_circle(obs),
                                          recovering=self.recovering)
         elif self.opener.current is not None:
             self.opener.cancel("existing combat action takes priority")
         cover_goal = None
         had_cover = self.cover_active
-        if salvage_goal is None and opening is None and (self.recovering or self.mode == "evade"):
+        if (salvage_goal is None and opening is None and duel is None and
+                (self.recovering or self.mode == "evade")):
             cover_goal = self.cover.choose(obs, threats, self.shelter_circle(obs),
                                            recovering=self.recovering)
         if cover_goal is not None and self.cover.state == "approach":
@@ -385,10 +400,12 @@ class Bot:
         else:
             waypoint = salvage_goal or self.nav.waypoint(
                 me["pos"], self.goal, now, circle, [e["pos"] for e,c in threats[:5]])
-            move, boost, jump = self.steer(obs, waypoint, threats, retreat)
+            move, boost, jump = self.steer(obs, waypoint, threats, retreat, closing=bool(duel and duel.sprint))
         targets = sorted(obs["mechs"], key=lambda e: (e["kind"] != "mech", distance(me["pos"],e["pos"])))
         if opening is not None:
             targets = [opening.exclusive_target] if opening.exclusive_target else []
+        elif duel is not None:
+            targets = [duel.enemy]
         elif not retreat and (not threats or distance(me["pos"],threats[0][0]["pos"]) > 110):
             # Crate farming only when quiet and close enough to collect the cube.
             targets += sorted((c for c in self.loot.get("crates") if distance(me["pos"],c["pos"]) < 110),
