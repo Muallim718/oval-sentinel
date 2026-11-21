@@ -1,6 +1,23 @@
 # Validation performed
 
+## Current default: restored 3.63 controller
+
+The runtime, tests, ground feedback tool, and verification command on `main`
+match the scored `9bf75d70a8d209a1dd8ea4f67415ee93a9cbf7f0` exactly. The
+readiness and rooftop experiments remain on public branches with their scores
+and evidence below. They are not part of the default bot.
+
+After restoration, all **80 tests passed locally**; the official checker
+returned **300/300 on-time answers**, zero errors, startup 231 ms, p99 3.5 ms,
+maximum 9.3 ms. Crowded/growing-body host maxima were 21.38/22.00 ms, with no
+decisions above 50 ms. The unchanged runtime's original Linux sandbox check is
+linked in the revision 8 section; GitHub Actions also repeats it for this push.
+
 ## Revision 11: phase-aware roof zone control
+
+**Experimental, not the default:** scored **3.31**. Revision 8's 3.63 entry
+remains selected, and its runtime and test suite were restored exactly on
+`main`. The roof candidate is public on `experiment/roof-zone`.
 
 This corrects revision 10's abandoned-launch zone requirement after landing.
 It retains or repositions a supported live hold on the same roof and preserves
@@ -17,9 +34,27 @@ limits](docs/REVISION_11.md).
   6.65 ms, zero above 50 ms. This measures the altitude controller on the host,
   excluding the rest of the bot and protocol I/O.
 
-Linux validation and scored comparison pending. Revision 8's 3.63 remains selected.
+Commit `c70818c75148d369b713e03010cbce44bf0ac4e8` passed the
+[Linux workflow](https://github.com/Muallim718/oval-sentinel/actions/runs/44932195013).
+All 141 tests and the pinned image build passed. The restricted-container
+official checker returned 300/300 on-time, p50 2.5 ms, p90 3.6 ms, p99 7.2 ms,
+maximum 16.6 ms. Linux host crowded/growing maxima were 31.21/31.13 ms;
+quiet-start decision maximum 4.49 ms; active roof-zone p99 12.35 ms, maximum
+14.02 ms. No samples exceeded 50 ms. The submitted tree contains 61 files,
+2,344,126 bytes, below 20 MB.
+
+Receipt `BB-002475DD` was submitted at 12:52 PM EST on 2026-11-21 and scored
+**3.31**, implying average placement approximately 12.69. This is 0.09 below
+the original roof experiment and 0.32 below the best controller. Correcting the
+demonstrated zone flaw did not improve aggregate placement; no match-level
+breakdown established why. Runtime, tests, and verification tools were compared
+with `9bf75d70a8d209a1dd8ea4f67415ee93a9cbf7f0` and match exactly after restoration.
 
 ## Revision 10: proactive roof sanctuary
+
+**Experimental, not the default:** scored 3.40 and archived on
+`experiment/proactive-roofs`. Revision 11 corrected its zone behavior and scored
+3.31; both roof versions are below the retained 3.63 ground controller.
 
 Commit `7edf73c69c0661c98cc1f2fd53096af62d130bf9` passed the
 [Linux workflow](https://github.com/Muallim718/oval-sentinel/actions/runs/44930483153).

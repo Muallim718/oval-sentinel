@@ -18,7 +18,6 @@ from sentinel.strategy import Bot, future_circle
 from sentinel.memory import LootMemory
 from sentinel.cover import CoverPlanner
 from sentinel.movement import GroundSteering
-from sentinel.altitude import RoofSanctuary
 
 
 def flat_world(prisms=()):
@@ -277,7 +276,6 @@ class TacticalRegressionTests(unittest.TestCase):
         self.bot.nav = Navigator(world,self.hello["config"]["mech"])
         self.bot.combat = Combat(world,self.hello["config"])
         self.bot.cover = CoverPlanner(world,self.hello["config"])
-        self.bot.altitude = RoofSanctuary(world,self.hello["config"])
         self.bot.motion = GroundSteering(world,self.hello["config"])
 
     def enemy(self,x=0,hp=1400):

@@ -5,7 +5,7 @@ library only. The `Dockerfile` is already at the repository root.
 
 [![Bot checks](https://github.com/Muallim718/oval-sentinel/actions/workflows/check.yml/badge.svg)](https://github.com/Muallim718/oval-sentinel/actions/workflows/check.yml)
 
-Public repository: https://github.com/Muallim718/oval-sentinel
+Public repository: [Muallim718/oval-sentinel](https://github.com/Muallim718/oval-sentinel)
 
 **Best scored entry: 3.63 placement points**, up from 3.25 (+0.38), with the
 [ground-cover and movement redesign](docs/REVISION_8.md). Receipt `BB-1461B1AF`
@@ -19,18 +19,18 @@ This is below the leading teams; the site provides no individual match breakdown
 | [8](docs/REVISION_8.md) | Committed cover and predictive steering | **3.63** |
 | [9](docs/REVISION_9.md) | Readiness and protected resource acquisition | 3.58 |
 | [10](docs/REVISION_10.md) | Proactive rooftop sanctuary | 3.40 |
-| [11](docs/REVISION_11.md) | Stay on safe roof space through zone movement | Pending |
+| [11](docs/REVISION_11.md) | Stay on safe roof space through zone movement | 3.31 |
 
-The rooftop experiment now includes a correction: its original zone check can
-abandon a safe roof because the old ground launch point is outside the future
-circle. The correction keeps or repositions a supported hold on the same roof.
-Experimental runtime is currently on `main`; use the `score-3.63` tag
-for the best scored controller until the comparison is complete.
+**The default runtime matches the 3.63 controller exactly.** The resource and
+rooftop experiments scored lower and were not adopted. The complete roof
+candidate, including its 141 tests and timing tools, remains public on
+[`experiment/roof-zone`](https://github.com/Muallim718/oval-sentinel/tree/experiment/roof-zone).
 
-**Linux sandbox verified:** revision 10 passed 116 behavioral tests and the
-official restricted-container check, with 300/300 on-time answers and a 14.0 ms
-maximum response. The best scored revision 8 passed 80 tests and the same
-300-answer check. See [VALIDATION.md](VALIDATION.md) for exact runs and limits.
+**Linux sandbox verified:** the retained revision 8 passed 80 behavioral tests
+and the official restricted-container check, with 300/300 on-time answers and a
+14.0 ms maximum response. Both roof experiments also passed their larger test
+suites and container checks before submission. See [VALIDATION.md](VALIDATION.md)
+for exact runs, performance results, and limits.
 
 **Start here:** run the checks below, read [the strategy](docs/STRATEGY.md), and
 consult the [full submission history](docs/PRACTICE_LOG.csv). Experiments that
@@ -54,8 +54,7 @@ python3 tools/verify.py
 ```
 
 That runs behavioral tests, the official 300-observation conformance check,
-crowded-input timing, 40 fresh quiet-map starts, and 160 active roof-zone updates.
-It fails if a test or the official check fails.
+and crowded-input timing. It fails if a test or the official check fails.
 The benchmark reports timing; its synthetic inputs are not scored games.
 
 **With Docker running**, add `--docker` to build for `linux/amd64` and run the
@@ -92,7 +91,6 @@ Think of each decision as five questions:
 | `sentinel/memory.py` | Previously observed loot and stale-item removal. |
 | `sentinel/cover.py` | Wall-side shelters, body-wide firing lanes, commitment, and rejection. |
 | `sentinel/movement.py` | Acceleration-aware command rollouts, braking, exposure, and dodging. |
-| `sentinel/altitude.py` | Early safe-launch planning, roof holding, and physical exits. |
 | `sentinel/navigation.py` | A* routes around buildings; searches can continue across decisions. |
 | `sentinel/geometry.py` | Terrain heights, walls, courtyards, bridges, and shot obstruction. |
 | `sentinel/combat.py` | Bullet leading, mortar arcs, laser charging, and lightning checks. |
@@ -100,7 +98,6 @@ Think of each decision as five questions:
 | `tests/test_bot.py` | Focused behavior regressions. |
 | `tools/verify.py` | The single verification command. |
 | `tools/benchmark.py` | Recorded and synthetic decision latency checks. |
-| `tools/benchmark_quiet.py` | Fresh quiet-map starts that exercise proactive search. |
 | `tools/diagnose.py` | Policy-output audit of the kit recording. |
 | `tools/audit_missions.py` | Compare arming missions and combat posture on the fixed recording. |
 | `tools/ground_lab.py` | Optional reactive gun stress model; not the server or a score predictor. |

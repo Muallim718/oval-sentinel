@@ -51,6 +51,24 @@ reported p99 5.98 ms, maximum 6.65 ms, and no calls above 50 ms. That last
 benchmark measures the altitude controller, excluding the rest of the bot and
 protocol I/O; the official checker includes those costs on its recorded stream.
 
-Linux sandbox validation and the scored result are pending. Controlled flight
-feedback cannot predict placement or reproduce authoritative server physics,
-combat, or storm damage during a full moving-zone match.
+Commit `c70818c75148d369b713e03010cbce44bf0ac4e8` passed the
+[Linux workflow](https://github.com/Muallim718/oval-sentinel/actions/runs/44932195013):
+all 141 tests, the pinned image build, and 300/300 on-time restricted-container
+replies. Container p99 was 7.2 ms, maximum 16.6 ms. Linux host crowded/growing
+maxima were 31.21/31.13 ms. Quiet starts had maximum decision 4.49 ms; active
+retargets had p99 12.35 ms, maximum 14.02 ms. No timing samples exceeded 50 ms.
+The submitted tree contains 61 files and 2,344,126 bytes, below 20 MB.
+
+Receipt `BB-002475DD` was submitted at 12:52 PM EST on 2026-11-21 and scored
+**3.31**, 0.09 below the original roof experiment and 0.32 below revision 8.
+The zone-control defect is fixed in controlled tests, but the strategy did not
+improve the aggregate practice score. No match-level breakdown was available,
+so the cause of the decline is not established.
+
+The 3.63 entry remains selected. Revision 8's runtime, tests, and verification
+command were restored exactly on `main`. The full 141-test roof candidate and
+its timing tools remain public on
+[`experiment/roof-zone`](https://github.com/Muallim718/oval-sentinel/tree/experiment/roof-zone).
+Run the roof-specific checks from that branch, not the ground-only default.
+Controlled feedback cannot predict placement or reproduce authoritative server
+physics, combat, or storm damage during a full moving-zone match.

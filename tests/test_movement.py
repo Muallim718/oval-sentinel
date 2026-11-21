@@ -10,7 +10,6 @@ from test_bot import fixture, flat_world, rectangle
 from sentinel.combat import Combat
 from sentinel.cover import CoverPlanner
 from sentinel.movement import GroundSteering
-from sentinel.altitude import RoofSanctuary
 from sentinel.navigation import Navigator
 from sentinel.strategy import Bot
 
@@ -96,7 +95,6 @@ class MovementTests(unittest.TestCase):
         bot.nav = Navigator(self.world, self.hello["config"]["mech"])
         bot.combat = Combat(self.world, self.hello["config"])
         bot.cover = CoverPlanner(self.world, self.hello["config"])
-        bot.altitude = RoofSanctuary(self.world, self.hello["config"])
         bot.motion = GroundSteering(self.world, self.hello["config"])
         self.obs["mechs"] = [self.enemy]
         return bot

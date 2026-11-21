@@ -88,6 +88,8 @@ Receipt `BB-7E1DFF95` was submitted at 12:33 PM EST on 2026-11-21 and scored
 Code review after submission found an important limitation: the zone check
 requires the abandoned ground launch point to remain safe even after landing.
 It can therefore force an exit from a roof whose holding position is safe.
-The immutable scored candidate is preserved on `experiment/proactive-roofs`;
-a corrected comparison will distinguish this control flaw from the wider roof
-strategy. The aggregate result alone cannot establish the cause of the decline.
+The immutable scored candidate is preserved on `experiment/proactive-roofs`.
+[Revision 11](REVISION_11.md) corrected that flaw and added supported same-roof
+zone retargeting, but scored 3.31. Both roof experiments were set aside and the
+3.63 ground controller restored. Aggregate results do not establish the cause
+of either decline.

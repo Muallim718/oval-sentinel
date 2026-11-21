@@ -1,6 +1,6 @@
 # Independent flight feedback model
 
-[test_altitude_feedback.py](../tests/test_altitude_feedback.py) drives the actual
+[test_altitude_feedback.py](https://github.com/Muallim718/oval-sentinel/blob/experiment/roof-zone/tests/test_altitude_feedback.py) drives the experimental
 controller with independent 20 Hz movement feedback and 10 Hz commands. It is a
 limited physics test, not the server, house AI, or a practice-score predictor.
 
@@ -31,7 +31,7 @@ retains altitude ownership until actual terrain landing. Integration tests cover
 stalled roof exits, pressure before launch, pressure while holding, firing masks,
 body growth, pitch limits, upgrades, reloads, and passive weapon pickups.
 
-[Phase-aware zone feedback](../tests/test_altitude_zone_feedback.py) additionally
+[Phase-aware zone feedback](https://github.com/Muallim718/oval-sentinel/blob/experiment/roof-zone/tests/test_altitude_zone_feedback.py) additionally
 checks a safe 25 m roof hold after its ground launch leaves the forecast circle,
 completion of an already airborne flight, walking into a shifted 5 m circle on
 the same roof, and an owned physical descent when no usable roof anchor remains.
@@ -39,6 +39,10 @@ The forecast is separate from the current observed circle; these cases do not
 pretend that the actual storm teleports instantly or model storm damage.
 
 Run the focused physics tests:
+
+These belong to the archived `experiment/roof-zone` branch. The default branch
+restores the best 3.63 ground controller and its 80-test suite after the roof
+candidate scored 3.31. Check out that experimental branch before these commands.
 
 ```sh
 python3 -m unittest discover -s tests -p test_altitude_feedback.py -v
