@@ -316,6 +316,7 @@ class Bot:
     def act(self, obs):
         self.remember(obs)
         me, now = obs["self"], obs["t"]
+        self.nav.set_body(me["stats"])
         old_mode = self.mode
         self.select_mode(obs)
         threats = sorted(self.threats(now), key=lambda ec: distance(me["pos"],ec[0]["pos"]))

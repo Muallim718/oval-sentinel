@@ -75,7 +75,19 @@ def crowded(hello, initial, count=360):
         yield obs
 
 
+def growing(hello, initial):
+    """Stress route cache invalidation with six cube/body sizes."""
+    for i,obs in enumerate(crowded(hello,initial,count=180)):
+        cubes = i//30
+        obs["self"]["cubes"] = cubes
+        scale = 1+hello["config"]["cubes"].get("size_per_cube",.05)*cubes
+        for key in ("radius","height","eye_height","muzzle_height"):
+            obs["self"]["stats"][key] = hello["config"]["mech"][key]*scale
+        yield obs
+
+
 if __name__ == "__main__":
     hello, observations = load_stream()
     benchmark("official recording (direct calls)", hello, observations)
     benchmark("15 enemies + 32 projectiles (synthetic)", hello, crowded(hello, observations[0]))
+    benchmark("growing body + crowded inputs (synthetic)", hello, growing(hello,observations[0]))

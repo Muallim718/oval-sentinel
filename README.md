@@ -7,6 +7,10 @@ library only. The `Dockerfile` is already at the repository root.
 
 Public repository: https://github.com/Muallim718/oval-sentinel
 
+**Revision 4 candidate:** body-size-aware routing alone, on top of revision 2.
+Combat and other strategic choices are unchanged. The [isolated change and tests](docs/REVISION_4.md)
+are documented; its scored comparison is pending. The 3.06 score remains revision 2's.
+
 **Revision 3 experiment: 2.58**, below revision 2's 3.06. The default policy was
 restored to the exact revision 2 bot code, and the event kept 3.06 as the selected
 best entry. The experiment is preserved on

@@ -31,6 +31,31 @@ class Navigator:
         self.next_plan = -1
         self.search = None
         self.search_done = True
+        self.clearance = {}
+        self.body_changed = False
+
+    def set_body(self, stats):
+        """Invalidate only geometry-dependent state when cubes enlarge the body."""
+        radius, height = stats["radius"]+0.4, stats["height"]
+        if abs(radius-self.radius) <= 0.01 and abs(height-self.height) <= 0.01:
+            return
+        self.radius, self.height = radius, height
+        self.body_changed = True
+        self.clearance.clear()
+        self.links.clear()
+        self.path = []
+        self.goal = None
+        self.search = None
+        self.search_done = True
+
+    def valid_at(self, k):
+        # Bodies only grow in this game. A base-invalid cell stays invalid.
+        # Keep the original fast path before growth to minimize the experiment.
+        if not self.valid[k] or not self.body_changed:
+            return bool(self.valid[k])
+        if k not in self.clearance:
+            self.clearance[k] = self.world.body_clear(*self.points[k],self.radius,self.height,self.step_up)
+        return self.clearance[k]
 
     def nearest(self, pos):
         i = max(0, min(self.nx-1, round((pos[0]-self.x0)/self.step)))
@@ -42,7 +67,7 @@ class Navigator:
                     if r and abs(x-i) != r and abs(y-j) != r:
                         continue
                     k = y*self.nx+x
-                    if self.valid[k]:
+                    if self.valid_at(k):
                         d = distance(pos, self.points[k])
                         if d < best_d:
                             best, best_d = k, d
@@ -51,6 +76,8 @@ class Navigator:
         return None
 
     def neighbors(self, k):
+        if not self.valid_at(k):
+            return []
         if k not in self.links:
             i, j = k % self.nx, k // self.nx
             out = []
@@ -59,9 +86,9 @@ class Navigator:
                 if not (0 <= x < self.nx and 0 <= y < self.ny):
                     continue
                 other = y*self.nx+x
-                if not self.valid[other]:
+                if not self.valid_at(other):
                     continue
-                if dx and dy and not (self.valid[j*self.nx+x] and self.valid[y*self.nx+i]):
+                if dx and dy and not (self.valid_at(j*self.nx+x) and self.valid_at(y*self.nx+i)):
                     continue
                 if self.world.walk_clear(self.points[k], self.points[other], self.radius, self.height, self.step_up):
                     out.append((other, self.step * (math.sqrt(2) if dx and dy else 1)))
