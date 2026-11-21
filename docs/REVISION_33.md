@@ -34,3 +34,13 @@ diagnostics, and the official run is the placement measurement.
 All 150 local tests passed. The official checker answered 300/300 on time,
 with a 6.8 ms maximum. The crowded and growing-body maxima were 12.15 and
 13.19 ms.
+
+Commit `48bc90e0eeb22fb2bd5b58bcabd680c58c187177` passed 150 tests and the
+pinned Linux build. The restricted container answered 300/300 on time,
+with p99 9.5 ms and maximum 10.2 ms. The tree was 2,419,762 bytes.
+[Linux check results](https://github.com/Muallim718/oval-sentinel/actions/runs/44953279696)
+
+Receipt `BB-9EC89CD5` scored this exact commit **4.02** after acceptance at
+4:57 PM EST on November 21, 2026. The 4.04 entry remained selected.
+The combined policy's gains in the two-wave model did not raise placement
+on the private 48-match practice run.
