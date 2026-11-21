@@ -24,6 +24,7 @@ This is below the leading teams; the site provides no individual match breakdown
 | [12](docs/REVISION_12.md) | Incoming-shot prediction, spacing, and firing windows | 3.38 |
 | [13](docs/REVISION_13.md) | Collect confirmed kill rewards before the next hunter | **3.73** |
 | [14](docs/REVISION_14.md) | Finish weakened opponents within the incoming damage budget | 3.58 |
+| [15](docs/REVISION_15.md) | Prepare laser shots behind cover and return after release | 3.58 |
 
 **The default runtime matches the 3.73 controller.** Earlier readiness,
 rooftop, and duel experiments scored lower. The complete roof
