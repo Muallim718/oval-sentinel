@@ -90,7 +90,7 @@ class Combat:
             return None
         return aim_at(origin, point), point, radius, height
 
-    def action(self, me, targets, retreat, final_duel, return_fire=False):
+    def action(self, me, targets, retreat, final_duel, return_fire=False, forced_weapon=None):
         if not targets:
             return None, [False, False], None
         options = []
@@ -103,7 +103,7 @@ class Combat:
                     continue
                 gun_only = True
             for slot, weapon in enumerate(me["weapons"]):
-                if weapon is None:
+                if weapon is None or (forced_weapon and weapon["kind"] != forced_weapon):
                     continue
                 if gun_only and weapon["kind"] != "gun":
                     continue
@@ -136,7 +136,7 @@ class Combat:
         aim[1] = max(stats_me.get("min_pitch", -0.7), min(stats_me.get("max_pitch", 1.3), aim[1]))
         fire = [False, False]
         for slot, weapon in enumerate(me["weapons"]):
-            if not weapon:
+            if not weapon or (forced_weapon and weapon["kind"] != forced_weapon):
                 continue
             if gun_only and weapon["kind"] != "gun":
                 continue

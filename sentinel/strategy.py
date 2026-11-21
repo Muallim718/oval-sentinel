@@ -14,6 +14,7 @@ from .memory import LootMemory
 from .cover import CoverPlanner
 from .movement import GroundSteering
 from .salvage import KillSalvage
+from .opener import Opener
 
 
 def future_circle(zone, now, seconds):
@@ -46,6 +47,7 @@ class Bot:
         self.combat = Combat(self.world, self.config)
         self.cover = CoverPlanner(self.world, self.config)
         self.salvage = KillSalvage(self.world, self.config)
+        self.opener = Opener(self.world, self.config)
         self.motion = GroundSteering(self.world, self.config)
         self.cover_active = False
         self.cover_watch_goal = None
@@ -313,9 +315,16 @@ class Bot:
             obs, self.loot.get("cubes"), threats, self.shelter_circle(obs),
             emergency=not me["in_zone"] or
             (me["hp"] < me["max_hp"]*.23 and now-self.last_weapon_damage < .6))
+        opening = None
+        charging = any(w and w["kind"] == "laser" and w.get("charge", 0) > 0 for w in me["weapons"])
+        if salvage_goal is None and not charging:
+            opening = self.opener.choose(obs, threats, self.shelter_circle(obs),
+                                         recovering=self.recovering)
+        elif self.opener.current is not None:
+            self.opener.cancel("existing combat action takes priority")
         cover_goal = None
         had_cover = self.cover_active
-        if salvage_goal is None and (self.recovering or self.mode == "evade"):
+        if salvage_goal is None and opening is None and (self.recovering or self.mode == "evade"):
             cover_goal = self.cover.choose(obs, threats, self.shelter_circle(obs),
                                            recovering=self.recovering)
         if cover_goal is not None and self.cover.state == "approach":
@@ -342,6 +351,13 @@ class Bot:
             self.next_goal = now+tuning.GOAL_INTERVAL
             self.objective = None
             self.jet_until = -1
+        elif opening is not None:
+            self.cover.clear("opening power mission owns the route")
+            self.mode, self.duel = "opening", None
+            self.goal, self.goal_kind = tuple(opening.goal[:2]), opening.kind
+            self.next_goal = now+tuning.GOAL_INTERVAL
+            self.objective = None
+            self.jet_until = -1
         elif self.cover_active:
             self.goal, self.goal_kind = cover_goal, "cover"
             self.objective = None
@@ -353,16 +369,27 @@ class Bot:
             self.goal = None
             self.next_goal = -1
         retreat = self.recovering and self.mode != "fight"
-        if salvage_goal is None and not self.cover_active and (self.goal is None or old_mode != self.mode or
-                                      now >= self.next_goal or not me["in_zone"]):
+        if (salvage_goal is None and opening is None and not self.cover_active and
+                (self.goal is None or old_mode != self.mode or now >= self.next_goal or not me["in_zone"])):
             self.goal, self.goal_kind, self.circle = self.choose_goal(obs, retreat, threats)
             self.next_goal = now+tuning.GOAL_INTERVAL
         circle = future_circle(obs["zone"], now, 12)
-        waypoint = salvage_goal or self.nav.waypoint(
-            me["pos"], self.goal, now, circle, [e["pos"] for e,c in threats[:5]])
-        move, boost, jump = self.steer(obs, waypoint, threats, retreat)
+        if opening is not None:
+            waypoint = opening.waypoint or opening.goal
+            move, boost = self.motion.choose(obs, waypoint, threats, "opening", 75, False,
+                                             sprinting=opening.sprint, cover=False,
+                                             circle=future_circle(obs["zone"], now, 2))
+            jump, self.sprinting = False, boost
+            self.stuck_since = None
+            self.last_position = list(me["pos"])
+        else:
+            waypoint = salvage_goal or self.nav.waypoint(
+                me["pos"], self.goal, now, circle, [e["pos"] for e,c in threats[:5]])
+            move, boost, jump = self.steer(obs, waypoint, threats, retreat)
         targets = sorted(obs["mechs"], key=lambda e: (e["kind"] != "mech", distance(me["pos"],e["pos"])))
-        if not retreat and (not threats or distance(me["pos"],threats[0][0]["pos"]) > 110):
+        if opening is not None:
+            targets = [opening.exclusive_target] if opening.exclusive_target else []
+        elif not retreat and (not threats or distance(me["pos"],threats[0][0]["pos"]) > 110):
             # Crate farming only when quiet and close enough to collect the cube.
             targets += sorted((c for c in self.loot.get("crates") if distance(me["pos"],c["pos"]) < 110),
                               key=lambda c: distance(me["pos"],c["pos"]))
@@ -370,7 +397,8 @@ class Bot:
         # preserving movement speed and energy; stop once incoming hits cease.
         return_fire = now-self.last_weapon_damage < 1.0
         aim, fire, target = self.combat.action(me, targets, retreat, obs["alive"] <= 2,
-                                             return_fire=return_fire)
+                                             return_fire=return_fire,
+                                             forced_weapon="gun" if opening is not None else None)
         if self.cover_active and self.cover.sheltered and self.recovering:
             # A weak target or an over-wall mortar must not restart the healing
             # clock. Trigger-off releases any already-held laser into the cover.
@@ -381,8 +409,11 @@ class Bot:
             if threats:
                 e = threats[0][0]
                 aim = aim_at(me["pos"], e["pos"])
+            elif opening is not None:
+                aim = aim_at(me["pos"], opening.goal)
             else:
-                aim = [(self.phase+now*0.7+math.pi)%math.tau-math.pi, 0.0]
+                scan = self.opener.scan_yaw(obs, threats)
+                aim = [scan if scan is not None else (self.phase+now*0.7+math.pi)%math.tau-math.pi, 0.0]
             damaged = [e for e in obs["events"] if e["type"] == "damaged" and e.get("bearing") is not None]
             if damaged:
                 aim = [damaged[-1]["bearing"], 0.0]
