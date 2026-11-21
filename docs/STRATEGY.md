@@ -6,9 +6,15 @@ Placement determines the score, and health can regenerate after five seconds
 without dealing or receiving damage. Firing at a distant opponent while trying
 to recover prevents that recovery. Sentinel therefore stops optional ranged
 fights when recovery begins below 58% HP, and stays in recovery until 90% HP.
-It still defends itself at close range and finishes very weak opponents. The
-thresholds are preferences, not game rules. Hysteresis prevents premature returns
-to combat after only a small amount of healing.
+It still defends itself at close range and finishes very weak opponents. For one
+second after an incoming weapon hit, it can also return gun fire at a visible
+pursuer while continuing to escape. Healing is already interrupted under incoming
+fire. This exception ends when hits cease, does not activate for zone damage, and
+does not enable secondary weapons for the newly permitted targets. Return hits
+can delay healing after escape, so the exception is deliberately brief.
+
+The thresholds are preferences, not game rules. Hysteresis prevents premature
+returns to combat after only a small amount of healing.
 
 In practice, the house bots cooperate and never damage each other. Merely hiding
 does not guarantee placement points: eventually the bot must defeat pursuers or

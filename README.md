@@ -7,24 +7,25 @@ library only. The `Dockerfile` is already at the repository root.
 
 Public repository: https://github.com/Muallim718/oval-sentinel
 
-**Revision 7 candidate:** briefly return gun fire during recovery after an incoming
-weapon hit. The [isolated change, evidence, tests, and tradeoff](docs/REVISION_7.md)
-are documented. This candidate has not yet been scored.
+**Revision 7: 3.25 placement points**, a small increase over revision 4's 3.21.
+Brief gun self-defense during recovery after an incoming weapon hit is retained.
+The [isolated change, evidence, tests, and tradeoff](docs/REVISION_7.md) are
+documented. This is the current best entry.
 
 **Revision 6 experiment: 3.10**, below the 3.21 best. Preferring lightning and
-replacing idle lasers was not adopted. The default runtime again matches revision
-4. [Findings and tests](docs/REVISION_6.md) are recorded, and the candidate remains
+replacing idle lasers was not adopted. Revision 4 was restored before revision 7.
+[Findings and tests](docs/REVISION_6.md) are recorded, and the candidate remains
 public on [`experiment/lightning-preference`](https://github.com/Muallim718/oval-sentinel/tree/experiment/lightning-preference).
 
 **Revision 5 experiment: 3.13**, below the 3.21 best. The gun/laser coordination
-change was not adopted; the runtime code on `main` matches the proven revision 4.
+change was not adopted; revision 4 was restored before subsequent experiments.
 The [experiment and findings](docs/REVISION_5.md) remain available on
 [`experiment/shared-aim`](https://github.com/Muallim718/oval-sentinel/tree/experiment/shared-aim).
 
 **Revision 4: 3.21 placement points**, up from revision 2's 3.06 (+0.15).
 Body-size-aware routing alone is retained on top of revision 2.
 Combat and other strategic choices are unchanged. The [isolated change and tests](docs/REVISION_4.md)
-and scored outcome are documented. This is the current best entry.
+and scored outcome are documented. This remains the baseline for revision 7.
 
 **Revision 3 experiment: 2.58**, below revision 2's 3.06. The default policy was
 restored to revision 2 before the isolated revision 4 change was tested. The
@@ -37,18 +38,19 @@ weapon-specific duel spacing, and adds recovery hysteresis. Read
 [the diagnosis and changes](docs/REVISION_2.md). **Revision 2 scored 3.06**, up
 from the original 1.50 (+1.56 points, +104%).
 
-**Linux sandbox verified:** revision 4 passed all 39 behavioral
+**Linux sandbox verified:** revision 7 passed all 48 behavioral
 tests and the official restricted-container check (300/300 on-time answers;
-13.0 ms maximum response). See [VALIDATION.md](VALIDATION.md) for the run link.
+12.8 ms maximum response). See [VALIDATION.md](VALIDATION.md) for the run link.
 
 **Start here:** run the tests, create a public GitHub repository from this folder,
 wait for its Linux sandbox check to pass, then submit that repository's URL.
 
-**Best scored practice result: 3.21 placement points**, versus the starter's
-1.15 and the original version's 1.50. Receipt `BB-1B78B4C1` scored commit
-`55e2f3b557db4e93df80f4b7ee0fa2f749327a07` on 2026-11-21. The observed board
-position was 169 of 251 teams when read. This is an improvement, not yet a
-near-top result. No win rate or individual-match results were provided.
+**Best scored practice result: 3.25 placement points**, versus the starter's
+1.15 and the original version's 1.50. Receipt `BB-3CD4B274` scored commit
+`08489ae01066524d475337a53ba20ee4d5c32724` on 2026-11-21 at 10:54 AM EST.
+The observed board position was 173 when read. The 0.04 increase over 3.21 does
+not establish statistical significance or a near-top result. No win rate or
+individual-match results were provided.
 
 ## 1. Test it
 

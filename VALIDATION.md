@@ -1,5 +1,36 @@
 # Validation performed
 
+## Revision 7: recovery gun self-defense checks
+
+**Retained:** scored **3.25**, compared with the baseline's **3.21**. The site
+selected this entry as the team's best; the tested runtime remains on `main`.
+
+Commit `08489ae01066524d475337a53ba20ee4d5c32724` passed the
+[Linux workflow](https://github.com/Muallim718/oval-sentinel/actions/runs/44921586744).
+Only `sentinel/strategy.py` and `sentinel/combat.py` changed among runtime sources
+relative to revision 4: briefly permit gun retaliation during recovery after an
+incoming weapon hit. Movement, routing, equipment preference, and upgrades retain
+the 3.21 version's logic.
+
+- All 48 behavioral tests passed locally and on Linux, including nine recovery
+  self-defense cases and a limited weapon-clock pressure test.
+- Local official checker: 300/300 on-time answers, maximum 8.1 ms.
+- Restricted-container official checker: 300/300 on-time answers, zero misses;
+  p50 0.7 ms, p90 2.2 ms, p99 7.7 ms, maximum 12.8 ms on that runner.
+- Synthetic crowded-input benchmark on the Linux host: maximum 24.91 ms;
+  growing-body variant: maximum 24.60 ms. No decisions exceeded 50 ms.
+- Committed source: 40 files, 2,141,917 bytes, below 20 MB.
+- Recording audit: 194 recovery frames for both versions; 45 followed recent
+  weapon damage. Recovery gun-trigger frames rose from 0 to 3. The recording
+  does not react to actions and cannot predict damage or placement.
+
+Receipt `BB-3CD4B274` was submitted on 2026-11-21 at 10:54 AM EST after these
+checks and scored **3.25**, implying an average placement of approximately 12.75.
+The 0.04-point increase does not establish statistical significance. No
+match-level breakdown was exposed. The observed board position was 173, with
+one hourly slot remaining and the next shown to free at 11:12 AM EST. Only one
+practice attempt was used for this change. The prior 3.21 entry remains public.
+
 ## Revision 6: lightning preference checks
 
 **Experimental, not the default:** scored 3.10 versus revision 4's 3.21. Revision
