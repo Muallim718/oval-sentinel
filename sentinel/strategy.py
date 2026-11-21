@@ -17,6 +17,7 @@ from .salvage import KillSalvage
 from .opener import Opener
 from .duel_commitment import DuelCommitment
 from .quiet_window import QuietWindow
+from .finish_target import FinishTarget
 from .reload_arm import ReloadArm
 from .upgrade_economy import UpgradeEconomy
 
@@ -54,6 +55,7 @@ class Bot:
         self.opener = Opener(self.world, self.config)
         self.commitment = DuelCommitment(self.config)
         self.quiet_window = QuietWindow(self.config)
+        self.finish_target = FinishTarget(self.config)
         self.reload_arm = ReloadArm(self.world, self.config)
         self.arm_active = False
         self.upgrade_economy = UpgradeEconomy(self.config, tuning.UPGRADE_VALUE)
@@ -483,9 +485,15 @@ class Bot:
             targets = [target for target in targets if target["kind"] == "mech"]
             attack_retreat = False
         return_fire = now-self.last_weapon_damage < 1.0
+        finish = self.finish_target.choose(
+            obs, targets, self.world, retreat=retreat, repairing=repairing,
+            forced_weapon="gun" if opening is not None else None)
+        if finish is not None:
+            targets = [finish.target]
         aim, fire, target = self.combat.action(me, targets, attack_retreat, obs["alive"] <= 2,
                                              return_fire=return_fire,
-                                             forced_weapon="gun" if opening is not None else None)
+                                             forced_weapon="gun" if opening is not None or
+                                                 finish is not None and finish.force_gun else None)
         if repairing:
             # A weak target or an over-wall mortar must not restart the healing
             # clock. Trigger-off releases any already-held laser into the cover.
