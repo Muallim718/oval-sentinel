@@ -50,7 +50,7 @@ class Bot:
         self.nav = Navigator(self.world, self.config["mech"])
         self.combat = Combat(self.world, self.config)
         self.cover = CoverPlanner(self.world, self.config)
-        self.salvage = KillSalvage(self.world, self.config)
+        self.salvage = KillSalvage(self.world, self.config, self.nav)
         self.opener = Opener(self.world, self.config)
         self.commitment = DuelCommitment(self.config)
         self.quiet_window = QuietWindow(self.config)
@@ -461,7 +461,7 @@ class Bot:
             self.stuck_since = None
             self.last_position = list(me["pos"])
         else:
-            waypoint = salvage_goal or self.nav.waypoint(
+            waypoint = (self.salvage.waypoint or salvage_goal) if salvage_goal is not None else self.nav.waypoint(
                 me["pos"], self.goal, now, circle, [e["pos"] for e,c in threats[:5]])
             move, boost, jump = self.steer(obs, waypoint, threats, retreat, closing=bool(duel and duel.sprint))
         targets = sorted((e for e in obs["mechs"] if e["kind"] != "mech" or e["id"] in active),
