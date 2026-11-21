@@ -1,9 +1,41 @@
 # Validation performed
 
+## Revision 8: cover and motion redesign
+
+**Retained:** scored **3.63**, up 0.38 displayed points from revision 7's 3.25.
+The site selected this entry as the team's best.
+
+Commit `9bf75d70a8d209a1dd8ea4f67415ee93a9cbf7f0` passed the
+[Linux workflow](https://github.com/Muallim718/oval-sentinel/actions/runs/44924563407).
+The redesign adds ground shelter planning, shared body-silhouette firing-lane
+checks, predictive horizontal steering with braking, and recovery integration.
+The 3.25 baseline is preserved by the public `score-3.25` tag.
+
+- All 80 behavioral tests passed locally and on Linux: the previous 48 plus
+  20 cover and 12 motion/integration tests.
+- Local official checker: 300/300 on-time answers, maximum 8.7 ms.
+- Restricted-container official checker: 300/300 on-time answers, zero misses;
+  p50 1.9 ms, p90 2.5 ms, p99 5.8 ms, maximum 14.0 ms on that runner.
+- Synthetic crowded-input benchmark on the Linux host: maximum 16.74 ms;
+  growing-body variant: maximum 26.83 ms. No decisions exceeded 50 ms.
+- Committed source: 47 files, 2,218,632 bytes, below 20 MB.
+- Independent ten-second fixed-shelter motion test: no drift, exposure, or boost
+  spending. The old steering moved roughly 136 m with a fixed protected goal.
+- A corrected, limited reactive gun-pursuit model improved all eight wall-pressure
+  cases over four seeds; mean modeled death time approximately 7.38 to 15.26 s.
+  Pressure cases still died before 25 s. Quiet collection stayed at 12.35 s.
+  These invented opponents and approximate physics cannot predict placement.
+
+Receipt `BB-1461B1AF` was submitted on 2026-11-21 at 11:27 AM EST after these
+checks and scored **3.63**, implying an average placement of approximately 12.37.
+Observed rank was 156 when read. One hourly slot remained, with another shown to
+free at 11:41 AM EST. No individual match breakdown was exposed; the result does
+not isolate the contribution of each part of the coherent movement redesign.
+
 ## Revision 7: recovery gun self-defense checks
 
-**Retained:** scored **3.25**, compared with the baseline's **3.21**. The site
-selected this entry as the team's best; the tested runtime remains on `main`.
+**Retained in revision 8's baseline:** scored **3.25**, compared with revision
+4's **3.21**. It was selected as the best before revision 8 scored higher.
 
 Commit `08489ae01066524d475337a53ba20ee4d5c32724` passed the
 [Linux workflow](https://github.com/Muallim718/oval-sentinel/actions/runs/44921586744).

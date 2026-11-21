@@ -53,11 +53,25 @@ path. Searches have both an expansion limit and a 9 ms time budget. If a search
 cannot finish in one decision, its frontier survives into the next. This matters
 for U-shaped obstacles, where a valid escape first moves away from the target.
 
-Local steering checks the mech's current upgraded radius and height, considers
-acceleration inertia, and chooses among alternate directions. It favors distance
-from close enemies, dodges predicted projectile paths and charging laser lines,
-and penalizes steps toward the storm. Sprinting has energy hysteresis so the bot
-does not alternate boost on/off every decision. A stuck mech can jump and jet.
+Recovery and crossfire can override ordinary goals with a committed ground
+shelter derived from building walls. Torso, head, and cylinder-flank firing lanes
+must all be blocked before a position is called sheltered. The planner holds real
+protection, looks for more protected separation from a close pursuer, and rejects
+failed approaches. Body growth, enemies rounding corners, and the predicted
+circle can invalidate a refuge.
+
+Local steering rolls out nine horizontal commands, including braking, using live
+body dimensions and published acceleration in 50 ms steps. It weighs exposure,
+route progress, projectile paths, charging laser lines, and the predicted zone.
+It can stop behind a wall; remembered enemies no longer force perpetual orbiting
+through that wall. Exposed healthy duels retain evasive motion. Sprinting has
+energy hysteresis and stops near a shelter so the mech can brake. Ground shelter
+commitments cancel stale jump/jet intent; ordinary stuck escapes remain available
+outside those commitments.
+
+While recovering in confirmed shelter, optional weapon attacks are suppressed,
+including finish attempts and mortar arcs that would restart regeneration.
+Trigger-off can still release a charge already in progress into the cover.
 
 ## Shooting
 

@@ -3,6 +3,10 @@
 Baseline: revision 7, **3.25** placement points. This is a substantial redesign of
 ground positioning and local motion, built on the best scored combat policy.
 
+**Scored result: 3.63**, up 0.38 displayed points from 3.25. The controller is
+retained and selected as the best entry. This is useful progress, while the
+observed board position of 156 remains below the leading teams.
+
 ## The structural failure
 
 The previous strategic goal scorer rewarded positions behind walls, but local
@@ -75,4 +79,23 @@ result was traced to an opponent-model bug (pursuers stopped behind walls),
 discarded, and corrected before making comparisons. All model limitations remain
 explicit in its documentation.
 
-Linux validation and the scored comparison will be recorded after completion.
+## Linux validation and scored practice
+
+Commit `9bf75d70a8d209a1dd8ea4f67415ee93a9cbf7f0` passed the
+[Linux workflow](https://github.com/Muallim718/oval-sentinel/actions/runs/44924563407):
+all 80 tests, pinned image build, and 300/300 on-time restricted-container checker
+responses; p99 5.8 ms, maximum 14.0 ms. Linux host synthetic crowded and growing-body
+benchmarks peaked at 16.74 and 26.83 ms, with no decision above 50 ms. The committed
+tree was 2,218,632 bytes, below 20 MB.
+
+The final corrected reactive-lab comparison improved all eight wall-pressure
+cases, with modeled mean death time approximately 7.38 to 15.26 s. All pressure
+cases still died before 25 s; quiet cube collection remained 12.35 s. See the
+[complete case table and limitations](GROUND_LAB.md). The real scored run decides
+whether to adopt this controller.
+
+Receipt `BB-1461B1AF` was submitted at 11:27 AM EST on 2026-11-21. The previous
+entry scored **3.63** and replaced 3.25 as the selected best. The implied average
+placement is approximately 12.37. The observed board position was 156, with one
+hourly slot remaining and the next shown at 11:41 AM EST. No match-level results
+were exposed. The public `score-3.25` tag preserves the prior baseline.

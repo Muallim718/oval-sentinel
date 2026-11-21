@@ -7,15 +7,16 @@ library only. The `Dockerfile` is already at the repository root.
 
 Public repository: https://github.com/Muallim718/oval-sentinel
 
-**Revision 8 candidate:** a ground-cover and motion-controller redesign on top of
-3.25. It can commit to shelter, brake and hold it, reposition before a close flank,
-and recover without optional attacks. [Design and tests](docs/REVISION_8.md) are
-documented. The 3.25 entry remains selected until this candidate is scored.
+**Revision 8: 3.63 placement points**, up from 3.25 (+0.38). The ground-cover and
+motion-controller redesign is retained. It commits to shelter, brakes and holds
+it, repositions before a close flank, and recovers without optional attacks.
+[Design, tests, and scored outcome](docs/REVISION_8.md) are documented. This is
+the current best entry.
 
 **Revision 7: 3.25 placement points**, a small increase over revision 4's 3.21.
 Brief gun self-defense during recovery after an incoming weapon hit is retained.
 The [isolated change, evidence, tests, and tradeoff](docs/REVISION_7.md) are
-documented. This is the current best entry.
+documented. It is the baseline used for revision 8.
 
 **Revision 6 experiment: 3.10**, below the 3.21 best. Preferring lightning and
 replacing idle lasers was not adopted. Revision 4 was restored before revision 7.
@@ -43,19 +44,19 @@ weapon-specific duel spacing, and adds recovery hysteresis. Read
 [the diagnosis and changes](docs/REVISION_2.md). **Revision 2 scored 3.06**, up
 from the original 1.50 (+1.56 points, +104%).
 
-**Linux sandbox verified:** revision 7 passed all 48 behavioral
+**Linux sandbox verified:** revision 8 passed all 80 behavioral
 tests and the official restricted-container check (300/300 on-time answers;
-12.8 ms maximum response). See [VALIDATION.md](VALIDATION.md) for the run link.
+14.0 ms maximum response). See [VALIDATION.md](VALIDATION.md) for the run link.
 
 **Start here:** run the tests, create a public GitHub repository from this folder,
 wait for its Linux sandbox check to pass, then submit that repository's URL.
 
-**Best scored practice result: 3.25 placement points**, versus the starter's
-1.15 and the original version's 1.50. Receipt `BB-3CD4B274` scored commit
-`08489ae01066524d475337a53ba20ee4d5c32724` on 2026-11-21 at 10:54 AM EST.
-The observed board position was 173 when read. The 0.04 increase over 3.21 does
-not establish statistical significance or a near-top result. No win rate or
-individual-match results were provided.
+**Best scored practice result: 3.63 placement points**, versus the starter's
+1.15 and the original version's 1.50. Receipt `BB-1461B1AF` scored commit
+`9bf75d70a8d209a1dd8ea4f67415ee93a9cbf7f0` on 2026-11-21 at 11:27 AM EST.
+The observed board position was 156 when read. This improves the displayed score
+by 0.38 over 3.25, but remains below the leading teams. No win rate or individual
+match results were provided. The prior baseline is tagged `score-3.25`.
 
 ## 1. Test it
 
@@ -110,6 +111,8 @@ Think of each decision as five questions:
 | `sentinel/strategy.py` | Those five decisions; read this first. |
 | `sentinel/tuning.py` | Strategy preferences and upgrade priorities. |
 | `sentinel/memory.py` | Previously observed loot and stale-item removal. |
+| `sentinel/cover.py` | Wall-side shelters, body-wide firing lanes, commitment, and rejection. |
+| `sentinel/movement.py` | Acceleration-aware command rollouts, braking, exposure, and dodging. |
 | `sentinel/navigation.py` | A* routes around buildings; searches can continue across decisions. |
 | `sentinel/geometry.py` | Terrain heights, walls, courtyards, bridges, and shot obstruction. |
 | `sentinel/combat.py` | Bullet leading, mortar arcs, laser charging, and lightning checks. |
@@ -118,6 +121,7 @@ Think of each decision as five questions:
 | `tools/verify.py` | The single verification command. |
 | `tools/benchmark.py` | Recorded and synthetic decision latency checks. |
 | `tools/diagnose.py` | Policy-output audit of the kit recording. |
+| `tools/ground_lab.py` | Optional reactive gun stress model; not the server or a score predictor. |
 | `docs/protocol.md` | Official rules and message specification. |
 
 Read [docs/STRATEGY.md](docs/STRATEGY.md) for the reasoning and tradeoffs.
