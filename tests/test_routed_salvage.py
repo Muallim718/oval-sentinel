@@ -27,19 +27,28 @@ class RoutedSalvageTests(unittest.TestCase):
         self.cubes=[dict(id=5002+i,pos=[181.068750583915,27.754120196151543,6.216980113594421])for i in range(5)]
         self.obs.update(t=10,tick=200,cubes=self.cubes,mechs=[],events=[],projectiles=[])
         self.salvage=KillSalvage(self.world,self.hello['config'],self.nav)
-        self.salvage.record_kill(10,dict(id=2,kind='mech',pos=self.cubes[0]['pos']))
+        self.salvage.record_kill(4,dict(id=2,kind='mech',pos=self.cubes[0]['pos']))
         self.circle=([0,0],470)
 
     def choose(self,threats=()):
         return self.salvage.choose(self.obs,self.cubes,threats,self.circle)
 
     def ready(self,threats=()):
+        self.prime_regeneration(threats)
         # Search slices can span observations, never authorize partial paths.
         goal=None
         for _ in range(4):
             goal=self.choose(threats)
             if goal is not None:break
         return goal
+
+    def prime_regeneration(self,threats=()):
+        now,hp=self.obs['t'],self.me['hp']
+        for dt in (-.2,-.1,0):
+            self.obs['t']=now+dt
+            self.me['hp']=hp+self.me['stats']['regen_per_s']*dt
+            self.choose(threats)
+        self.obs['t'],self.me['hp']=now,hp
 
     def test_public_corner_has_complete_grown_body_route_and_exact_anchor(self):
         self.assertIsNotNone(self.ready(),self.salvage.reason)
@@ -64,6 +73,7 @@ class RoutedSalvageTests(unittest.TestCase):
         self.assertIsNone(self.salvage.waypoint)
 
     def test_coincident_cubes_share_one_blocked_direct_geometry_check(self):
+        self.prime_regeneration()
         with (patch.object(self.world, "walk_clear", return_value=False) as direct,
               patch.object(self.salvage, "_detour", return_value=None) as detour):
             self.assertIsNone(self.choose())
@@ -79,7 +89,7 @@ class RoutedSalvageTests(unittest.TestCase):
         self.assertIsNotNone(self.ready(),self.salvage.reason)
         enemy=dict(id=3,kind='mech',pos=[200,40,6],vel=[0,0,0],weapons=['gun'],hp=1400)
         self.assertIsNone(self.choose([(enemy,1)]))
-        self.assertIn('race',self.salvage.reason)
+        self.assertIn('pressure',self.salvage.reason)
         self.assertIsNone(self.salvage.waypoint)
 
     def test_whole_detour_must_remain_inside_future_circle(self):

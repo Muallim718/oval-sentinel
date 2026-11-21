@@ -17,6 +17,8 @@ class KillSalvage:
     MAX_SECONDS = 7.0
     MAX_DISTANCE = 120.0
     BEACON_SECONDS = 8.0
+    RECOVERY_BEACON_SECONDS = 12.0
+    RECOVERY_MAX_SECONDS = 4.0
     SEARCH_SECONDS = .004
 
     def __init__(self, world, config, navigator=None):
@@ -24,6 +26,11 @@ class KillSalvage:
         self.navigator = navigator
         self.waypoint = None
         self.routed = False
+        self.repair_collecting = False
+        self.regenerating = False
+        self._regen_previous = None
+        self._regen_streak = 0
+        self._repair_ids = set()
         self._route_key = None
         self._route_nav = None
         self._route_points = None
@@ -58,13 +65,79 @@ class KillSalvage:
         self.beacons = [b for b in self.beacons if b["id"] != ident]
         self.beacons.append({"id": ident, "pos": tuple(enemy["pos"]), "t": now})
         self.beacons = self.beacons[-4:]
+        self._regen_streak, self.regenerating = 0, False
 
     def _reject(self, reason):
         self.goal, self.sprint, self.state = None, False, "idle"
         self.waypoint, self.routed = None, False
+        self.repair_collecting = False
         self.active_cube = None
         self.reason = reason
         return None
+
+    def _observe_regeneration(self, obs):
+        """Two real adjacent healing increments; pickups/upgrades cannot count."""
+        me, now = obs["self"], obs["t"]
+        upgrades = me.get("upgrades", ())
+        signature = tuple(sorted(upgrades.items())) if isinstance(upgrades, dict) else tuple(sorted(upgrades))
+        current = (now,me["hp"],me["max_hp"],me["cubes"],signature)
+        previous = self._regen_previous
+        if previous is not None and now == previous[0]:
+            return self.regenerating
+        damaged = any(e.get("type") in ("hit","damaged","kill","pickup","took")
+                      for e in obs.get("events", ()))
+        valid = previous is not None and not damaged and me["in_zone"] and me["grounded"]
+        if valid:
+            dt, gain = now-previous[0], me["hp"]-previous[1]
+            valid = (0 < dt <= .25 and current[2:] == previous[2:] and
+                     .001 < gain <= me["stats"]["regen_per_s"]*dt+1)
+        self._regen_streak = self._regen_streak+1 if valid else 0
+        self.regenerating = self._regen_streak >= 2 and me["hp"] < me["max_hp"]-.001
+        self._regen_previous = current
+        return self.regenerating
+
+    def _recovery_pressure(self, obs, enemies, path, radius, height, deadline):
+        """Reject crossing rounds and credible current/predicted firing lanes.
+
+        Passive or distant actors still enter the ordinary whole-route damage
+        and pickup-race estimates. They are not a global veto merely for being
+        remembered somewhere on the map.
+        """
+        if self._projectile_damage(obs,path,radius,height,deadline,full_path=True) > 0:
+            return True
+        me = obs["self"]
+        grown = dict(me,stats=dict(me["stats"],radius=radius,height=height))
+        for enemy, _ in enemies:
+            if time.perf_counter() >= deadline:
+                return True
+            dx,dy = me["pos"][0]-enemy["pos"][0],me["pos"][1]-enemy["pos"][1]
+            d = max(.01,math.hypot(dx,dy))
+            vx,vy = enemy.get("vel",(0,0))[:2]
+            facing = abs(angle_error(enemy.get("aim",(0,0))[0],math.atan2(dy,dx)))
+            credible = (enemy.get("kind") == "npc" or enemy.get("charging") or d < 90 or
+                        facing < .6 or (vx*dx+vy*dy)/d > 5)
+            if not credible:
+                continue
+            for i, point in enumerate(path):
+                if time.perf_counter() >= deadline:
+                    return True
+                future = dict(enemy,pos=[enemy["pos"][0]+vx*i*.05,enemy["pos"][1]+vy*i*.05,enemy["pos"][2]])
+                if enemy.get("kind") == "npc":
+                    if distance(point,enemy["pos"]) > self.config["npc"]["deaggro_range"]:
+                        continue
+                    origin=[*enemy["pos"][:2],enemy["pos"][2]+self.config["npc"]["height"]*.7]
+                    if self.world.line_clear(origin,[*point[:2],point[2]+height*.5]):
+                        return True
+                else:
+                    reach = max((self.config["weapons"][kind].get("range",
+                        self.config["weapons"][kind].get("speed",0)*self.config["weapons"][kind].get("ttl",0))
+                        for kind in enemy.get("weapons",("gun",)) if kind in self.config["weapons"]),default=0)
+                    if min(distance(point,enemy["pos"]),distance(point,future["pos"])) > reach+radius:
+                        continue
+                    if firing_lane(self.world,self.config,point,grown,enemy)[0] or firing_lane(
+                        self.world,self.config,point,grown,future)[0]:
+                        return True
+        return False
 
     def _growth(self, me, count):
         size = self.config["cubes"].get("size_per_cube", .05)
@@ -179,7 +252,7 @@ class KillSalvage:
                         break
             goal = remaining[0]
             direction = unit(goal[0]-p[0],goal[1]-p[1])
-            boost = energy-stats["boost_drain"]*.05 >= self.RESERVE_ENERGY
+            boost = False  # Moving during actual repair must not spend sprint energy.
             speed = stats["boost_speed"] if boost else stats["walk_speed"]
             dx,dy = direction[0]*speed-vx,direction[1]*speed-vy
             fraction = min(1,stats["ground_accel"]*.05/max(1e-9,math.hypot(dx,dy)))
@@ -301,7 +374,18 @@ class KillSalvage:
                     first = minimum/stats["speed"]
                     if minimum > stats["range"] or first > eta:
                         continue
-                    shots = min(stats["mag"], 1+math.floor((eta-first)/stats["cooldown"]))
+                    if full_path:
+                        # Empty magazines automatically reload. Capacity is
+                        # not an upper bound on an extended route's exposure.
+                        shots, at, ammo = 0, first, stats["mag"]
+                        while at <= eta:
+                            shots += 1
+                            ammo -= 1
+                            at += stats["reload"] if ammo == 0 else stats["cooldown"]
+                            if ammo == 0:
+                                ammo = stats["mag"]
+                    else:
+                        shots = min(stats["mag"], 1+math.floor((eta-first)/stats["cooldown"]))
                     total += shots*stats["damage"]*multiplier
                 elif kind == "laser" and minimum <= stats["range"]:
                     first = 0 if enemy.get("charging") else stats["charge"]
@@ -319,11 +403,13 @@ class KillSalvage:
 
     def choose(self, obs, cubes, threats, circle, emergency=False):
         me, now = obs["self"], obs["t"]
+        regenerating = self._observe_regeneration(obs)
         previous = self.active_cube
         self.goal, self.sprint, self.state = None, False, "idle"
         self.waypoint, self.routed = None, False
+        self.repair_collecting = False
         self.risk = {}
-        self.beacons = [beacon for beacon in self.beacons if now-beacon["t"] < self.BEACON_SECONDS]
+        self.beacons = [beacon for beacon in self.beacons if now-beacon["t"] < self.RECOVERY_BEACON_SECONDS]
         for cube in obs["cubes"]:
             self.cube_seen[cube["id"]] = now
         self.cube_seen = {ident: stamp for ident, stamp in self.cube_seen.items() if now-stamp < 25}
@@ -355,6 +441,7 @@ class KillSalvage:
                    self.cube_seen.get(cube["id"], -100) >= b["t"]-.5 for b in self.beacons):
                 eligible.append(cube)
         eligible.sort(key=lambda cube: (cube["id"] != previous, distance(me["pos"], cube["pos"])))
+        self._repair_ids.intersection_update(cube["id"] for cube in eligible)
         if not eligible:
             return self._reject("no known available cube near the verified kill")
         started = time.perf_counter()
@@ -362,12 +449,16 @@ class KillSalvage:
         # Spend detour time on a substantial confirmed bundle. Four compact
         # cubes can materially change the next fight and deny the same power
         # to a pursuer. Every original direct candidate still comes first.
-        attempts = [(cube, False) for cube in eligible[:6]]
+        fresh = lambda cube: any(distance(cube["pos"],b["pos"]) <= 12 and
+            now-b["t"] < self.BEACON_SECONDS for b in self.beacons)
+        attempts = [(cube, False) for cube in eligible[:6] if fresh(cube) and cube["id"] not in self._repair_ids]
         pickup = self.config["cubes"]["pickup_radius"]
-        if len(eligible) >= 4:
+        if regenerating and len(eligible) >= 4:
             for cube in eligible[:6]:
-                bundle = sum(distance(cube["pos"], other["pos"]) <= pickup * .75
-                             for other in eligible)
+                bundle = sum(other["id"] in visible_ids and
+                             distance(cube["pos"], other["pos"]) <= pickup * .75 for other in eligible)
+                if cube["id"] not in visible_ids:
+                    continue
                 if bundle >= 4:
                     attempts.append((cube, True))
                     break
@@ -395,14 +486,22 @@ class KillSalvage:
             waypoint = None
             direct = goal not in blocked_goals and self.world.walk_clear(
                 me["pos"], ground_goal, future_radius+.2, future_height, stats["step_up"], stats["max_slope_deg"])
-            if allow_route and direct:
-                continue  # Every direct candidate was already evaluated first.
-            if not direct:
+            if not direct and not allow_route:
                 self.reason = "post-pickup body cannot safely traverse or exit this corridor"
-                if not allow_route:
-                    blocked_goals.add(goal)
-                    continue
-                detour = self._detour(me,cube,cubes,circle,deadline)
+                blocked_goals.add(goal)
+                continue
+            if allow_route:
+                npcs=[(npc,1) for npc in obs["mechs"] if npc.get("kind") == "npc"]
+                if self._recovery_pressure(obs,enemies+npcs,[me["pos"]]*14,future_radius,future_height,deadline):
+                    return self._reject("live pressure interrupts regeneration collection")
+                if direct:
+                    if not (self.world.body_clear(*me["pos"],future_radius+.2,future_height,stats["step_up"]) and
+                            self.world.walk_clear(ground_goal,me["pos"],future_radius+.2,future_height,
+                                                  stats["step_up"],stats["max_slope_deg"])):
+                        continue
+                    detour=([ground_goal],ground_goal,future_radius,future_height,len(possible))
+                else:
+                    detour = self._detour(me,cube,cubes,circle,deadline)
                 if detour is None:
                     # Preserve one bounded A* search across observations,
                     # rather than restart for every cube in the same bundle.
@@ -423,13 +522,13 @@ class KillSalvage:
                 routed,waypoint,goal = True,points[0],tuple(ground_goal[:2])
             else:
                 eta, path, energy_left = self._travel(me, goal)
-            if eta > self.MAX_SECONDS:
+            if eta > (self.RECOVERY_MAX_SECONDS if routed else self.MAX_SECONDS):
                 self.reason = "kill reward cannot be reached before the short window closes"
                 continue
             if routed and any(distance(point,circle[0]) >= circle[1]-margin for point in path):
                 self.reason = "salvage detour leaves the predicted safe zone"
                 continue
-            expiry = max(beacon["t"]+self.BEACON_SECONDS for beacon in self.beacons
+            expiry = max(beacon["t"]+(self.RECOVERY_BEACON_SECONDS if routed else self.BEACON_SECONDS) for beacon in self.beacons
                          if distance(cube["pos"], beacon["pos"]) <= 12 and
                          self.cube_seen.get(cube["id"], -100) >= beacon["t"]-.5)
             if now+eta+.25 >= expiry:
@@ -450,6 +549,8 @@ class KillSalvage:
             projectile = self._projectile_damage(obs, path, future_radius, future_height, deadline, full_path=routed)
             npcs = [(npc, 1) for npc in obs["mechs"] if npc.get("kind") == "npc"]
             future = self._future_damage(obs, path, eta, enemies+npcs, deadline, full_path=routed)
+            if routed and self._recovery_pressure(obs,enemies+npcs,path,future_radius,future_height,deadline):
+                return self._reject("live pressure interrupts regeneration collection")
             remaining = me["hp"]+healing-projectile-future
             self.risk = {"eta": eta, "healing": healing, "projectile_damage": projectile,
                          "future_damage": future, "remaining_hp": remaining,
@@ -468,7 +569,10 @@ class KillSalvage:
                 continue
             self.goal, self.active_cube, self.state = goal, cube["id"], "collect"
             self.waypoint,self.routed = waypoint,routed
-            self.sprint = me["energy"] > self.RESERVE_ENERGY+stats["boost_drain"]*.1
+            self.repair_collecting = routed
+            if routed:
+                self._repair_ids.update(item["id"] for item in eligible if distance(item["pos"],cube["pos"]) <= pickup*.75)
+            self.sprint = not routed and me["energy"] > self.RESERVE_ENERGY+stats["boost_drain"]*.1
             self.reason = "commit to the verified kill reward within HP and arrival budgets"
             return self.goal
         return self._reject(self.reason)

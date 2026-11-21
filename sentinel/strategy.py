@@ -354,8 +354,8 @@ class Bot:
             emergency=not me["in_zone"] or
             (me["hp"] < me["max_hp"]*.23 and now-self.last_weapon_damage < .6))
         previous_commitment = self.commitment.target_id
-        repairing = self.recovering and self.quiet_window.repair(
-            obs, sheltered=self.cover_active and self.cover.sheltered and me["grounded"])
+        repairing = self.salvage.repair_collecting or (self.recovering and self.quiet_window.repair(
+            obs, sheltered=self.cover_active and self.cover.sheltered and me["grounded"]))
         if repairing and self.mode == "fight":
             self.mode, self.duel = "recover", None
         fight_obs = dict(obs, mechs=[e for e in obs["mechs"] if e["id"] in active])
@@ -476,8 +476,8 @@ class Bot:
                               key=lambda c: distance(me["pos"],c["pos"]))
         # Escape movement and attack permission are independent. Actual
         # shelter or continuing regeneration takes priority over a viable shot.
-        repairing = self.recovering and self.quiet_window.repair(
-            obs, sheltered=self.cover_active and self.cover.sheltered and me["grounded"])
+        repairing = self.salvage.repair_collecting or (self.recovering and self.quiet_window.repair(
+            obs, sheltered=self.cover_active and self.cover.sheltered and me["grounded"]))
         attack_retreat = retreat
         if retreat and active and not repairing:
             targets = [target for target in targets if target["kind"] == "mech"]
