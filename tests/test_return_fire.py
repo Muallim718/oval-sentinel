@@ -9,6 +9,7 @@ from sentinel.navigation import Navigator
 from sentinel.strategy import Bot
 from sentinel.cover import CoverPlanner
 from sentinel.movement import GroundSteering
+from sentinel.altitude import RoofSanctuary
 
 
 class ReturnFireTests(unittest.TestCase):
@@ -20,6 +21,7 @@ class ReturnFireTests(unittest.TestCase):
         self.bot.nav = Navigator(self.world, self.hello["config"]["mech"])
         self.bot.combat = Combat(self.world, self.hello["config"])
         self.bot.cover = CoverPlanner(self.world, self.hello["config"])
+        self.bot.altitude = RoofSanctuary(self.world, self.hello["config"])
         self.bot.motion = GroundSteering(self.world, self.hello["config"])
         self.me = self.obs["self"]
         self.me.update(pos=[-70, 0, 0], vel=[0, 0, 0], hp=700, aim=[0, 0])

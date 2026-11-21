@@ -24,6 +24,7 @@ def main():
     run([py, "-m", "unittest", "discover", "-s", "tests", "-v"])
     run([py, "check/check.py", "--", py, "-u", "bot.py"])
     run([py, "tools/benchmark.py"])
+    run([py, "tools/benchmark_quiet.py"])
     if args.docker:
         run(["docker", "build", "--platform", "linux/amd64", "-t", "oval-sentinel", "."])
         run([py, "check/check.py", "--map-dir", "/arena", "--", "docker", "run", "--rm", "-i",

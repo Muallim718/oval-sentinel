@@ -13,6 +13,7 @@ from .navigation import Navigator
 from .memory import LootMemory
 from .cover import CoverPlanner
 from .movement import GroundSteering
+from .altitude import RoofSanctuary
 
 
 def future_circle(zone, now, seconds):
@@ -45,6 +46,7 @@ class Bot:
         self.combat = Combat(self.world, self.config)
         self.cover = CoverPlanner(self.world, self.config)
         self.motion = GroundSteering(self.world, self.config)
+        self.altitude = RoofSanctuary(self.world, self.config)
         self.cover_active = False
         self.cover_watch_goal = None
         self.cover_watch_position = None
@@ -291,6 +293,30 @@ class Bot:
         jump = now < self.jet_until and me["grounded"]
         return move, bool(jet or (self.sprinting and me["grounded"]) or jump), bool(jump)
 
+    def shared_finish_actions(self, obs, action, target, threats):
+        """Apply the same reload, upgrade, and nearby pickup policy in every mode."""
+        me = obs["self"]
+        gun = next((w for w in me["weapons"] if w and w["kind"] == "gun"), None)
+        if gun and gun.get("reload", 0) <= 0:
+            # A cooldown or a moment of misalignment is not a reload window.
+            quiet = target is None and not any(distance(me["pos"],e["pos"]) < 150 for e,c in threats)
+            action["reload"] = gun.get("ammo",0) <= 0 or (quiet and gun.get("ammo",0) < gun["stats"]["mag"]*0.65)
+        if obs.get("offer"):
+            choices = obs["offer"]["choices"]
+            action["pick"] = max(range(len(choices)), key=lambda i: tuning.UPGRADE_VALUE.get(choices[i]["id"], 0))
+        held = [w["kind"] for w in me["weapons"] if w]
+        second = me["weapons"][1]
+        if second is None or second["kind"] == "mortar":
+            near = [p for p in obs["pickups"] if p["kind"] not in held and
+                    distance(me["pos"],p["pos"]) <= self.config["loot"]["pickup_radius"] and
+                    abs(me["pos"][2]-p["pos"][2]) <= 4 and
+                    self.weapon_value(p["kind"]) > (self.weapon_value(second["kind"])+0.5 if second else 0)]
+            if near:
+                action["take"] = max(near, key=lambda p: self.weapon_value(p["kind"]))["id"]
+                if second:
+                    action["drop"] = 1
+        return action
+
     def act(self, obs):
         self.remember(obs)
         me, now = obs["self"], obs["t"]
@@ -298,6 +324,47 @@ class Bot:
         old_mode = self.mode
         self.select_mode(obs)
         threats = sorted(self.threats(now), key=lambda ec: distance(me["pos"],ec[0]["pos"]))
+        altitude = self.altitude.update(obs, threats, self.shelter_circle(obs),
+                                        allow_start=not self.recovering and self.mode != "evade")
+        if altitude is not None:
+            self.cover.clear("altitude controller owns movement")
+            self.cover_active = False
+            self.cover_watch_goal = self.cover_watch_position = None
+            self.jet_until = -1
+            self.stuck_since = None
+            self.objective = None
+            self.mode, self.duel = "altitude", None
+            if "approach" in altitude:
+                self.goal, self.goal_kind = tuple(altitude["approach"][:2]), "roof approach"
+                waypoint = self.nav.waypoint(me["pos"], self.goal, now,
+                                             self.shelter_circle(obs), [])
+                move, boost = self.motion.choose(obs, waypoint, threats, "loot", 90, False,
+                                                 sprinting=False, cover=False,
+                                                 circle=future_circle(obs["zone"], now, 2))
+                jump = False
+            else:
+                self.goal = tuple((self.altitude.exit_goal if self.altitude.phase == "exit" else
+                                   self.altitude.site["hold"])[:2])
+                self.goal_kind = "roof "+str(self.altitude.phase)
+                move, boost, jump = altitude["move"], altitude["boost"], altitude["jump"]
+            healthy_hold = (self.altitude.phase == "hold" and not self.recovering and
+                            me["hp"] >= me["max_hp"]*.90)
+            targets = sorted(obs["mechs"], key=lambda e: (e["kind"] != "mech",
+                                                         distance(me["pos"], e["pos"])))
+            aim, fire, target = (self.combat.action(me, targets, False, obs["alive"] <= 2)
+                                 if healthy_hold else (None, [False, False], None))
+            if aim is None:
+                aim = (aim_at(me["pos"], threats[0][0]["pos"]) if threats else
+                       [(self.phase+now*.7+math.pi)%math.tau-math.pi, 0])
+            aim[1] = max(me["stats"]["min_pitch"], min(me["stats"]["max_pitch"], aim[1]))
+            action = {"tick": obs["tick"], "move": move, "boost": bool(boost),
+                      "jump": bool(jump), "aim": aim, "fire": fire}
+            self.shared_finish_actions(obs, action, target, threats)
+            if self.debug:
+                target_point = self.altitude.site["hold"]
+                action["debug"] = {"label": "roof/"+str(self.altitude.phase),
+                                   "points": [{"at": list(target_point), "color": "#40c0ff"}]}
+            return action
         cover_goal = None
         had_cover = self.cover_active
         if self.recovering or self.mode == "evade":
@@ -366,25 +433,7 @@ class Bot:
                 aim = [damaged[-1]["bearing"], 0.0]
         action = {"tick": obs["tick"], "move": move, "boost": boost,
                   "jump": jump, "aim": aim, "fire": fire}
-        gun = next((w for w in me["weapons"] if w and w["kind"] == "gun"), None)
-        if gun and gun.get("reload", 0) <= 0:
-            # A cooldown or a moment of misalignment is not a reload window.
-            quiet = target is None and not any(distance(me["pos"],e["pos"]) < 150 for e,c in threats)
-            action["reload"] = gun.get("ammo",0) <= 0 or (quiet and gun.get("ammo",0) < gun["stats"]["mag"]*0.65)
-        if obs.get("offer"):
-            choices = obs["offer"]["choices"]
-            action["pick"] = max(range(len(choices)), key=lambda i: tuning.UPGRADE_VALUE.get(choices[i]["id"], 0))
-        held = [w["kind"] for w in me["weapons"] if w]
-        second = me["weapons"][1]
-        if second is None or second["kind"] == "mortar":
-            near = [p for p in obs["pickups"] if p["kind"] not in held and
-                    distance(me["pos"],p["pos"]) <= self.config["loot"]["pickup_radius"] and
-                    abs(me["pos"][2]-p["pos"][2]) <= 4 and
-                    self.weapon_value(p["kind"]) > (self.weapon_value(second["kind"])+0.5 if second else 0)]
-            if near:
-                action["take"] = max(near, key=lambda p: self.weapon_value(p["kind"]))["id"]
-                if second:
-                    action["drop"] = 1
+        self.shared_finish_actions(obs, action, target, threats)
         if self.debug:
             debug_goal = self.goal or me["pos"][:2]
             action["debug"] = {"label": f"{self.mode}/{self.goal_kind} | HP {me['hp']:.0f}",

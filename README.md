@@ -7,6 +7,10 @@ library only. The `Dockerfile` is already at the repository root.
 
 Public repository: https://github.com/Muallim718/oval-sentinel
 
+**Revision 10 candidate:** proactive roof access and persistent holding on top
+of the 3.63 controller. [Behavior, flight tests, and limitations](docs/REVISION_10.md)
+are documented. The 3.63 entry remains selected until this candidate is scored.
+
 **Revision 9 experiment: 3.58**, below the 3.63 best. The readiness/resource
 policy was not adopted, and the default runtime matches the 3.63 controller.
 [Evidence and result](docs/REVISION_9.md) are recorded; the full experiment is
@@ -80,8 +84,8 @@ py -3.13 tools/verify.py
 python3 tools/verify.py
 ```
 
-That runs behavioral tests, the official 300-observation conformance check, and
-a crowded-input timing benchmark. It fails if a test or the official check fails.
+That runs behavioral tests, the official 300-observation conformance check,
+crowded-input timing, and 40 fresh quiet-map starts. It fails if a test or the official check fails.
 The benchmark reports timing; its synthetic inputs are not scored games.
 
 **With Docker running**, add `--docker` to build for `linux/amd64` and run the
@@ -118,6 +122,7 @@ Think of each decision as five questions:
 | `sentinel/memory.py` | Previously observed loot and stale-item removal. |
 | `sentinel/cover.py` | Wall-side shelters, body-wide firing lanes, commitment, and rejection. |
 | `sentinel/movement.py` | Acceleration-aware command rollouts, braking, exposure, and dodging. |
+| `sentinel/altitude.py` | Early safe-launch planning, roof holding, and physical exits. |
 | `sentinel/navigation.py` | A* routes around buildings; searches can continue across decisions. |
 | `sentinel/geometry.py` | Terrain heights, walls, courtyards, bridges, and shot obstruction. |
 | `sentinel/combat.py` | Bullet leading, mortar arcs, laser charging, and lightning checks. |
@@ -125,6 +130,7 @@ Think of each decision as five questions:
 | `tests/test_bot.py` | Focused behavior regressions. |
 | `tools/verify.py` | The single verification command. |
 | `tools/benchmark.py` | Recorded and synthetic decision latency checks. |
+| `tools/benchmark_quiet.py` | Fresh quiet-map starts that exercise proactive search. |
 | `tools/diagnose.py` | Policy-output audit of the kit recording. |
 | `tools/audit_missions.py` | Compare arming missions and combat posture on the fixed recording. |
 | `tools/ground_lab.py` | Optional reactive gun stress model; not the server or a score predictor. |
