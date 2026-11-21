@@ -1,6 +1,7 @@
 # Revision 37: coordinate both weapons on one torso
 
-This branch starts from the 4.04 submission. It replaces the direct-fire part
+The initial trial started from the 4.04 submission. The scored candidate adds
+the scheduler to the 4.19 confirmed-attacker runtime. It replaces the direct-fire part
 of a mech engagement with a scheduler that checks the upcoming two simulation
 steps. The original farming, mortar, flight, and quiet recovery paths still
 use their existing decisions.
@@ -13,8 +14,9 @@ use an exposed upper body without blindly shooting through the obstacle.
 
 Gun and secondary readiness use the observed cooldown. The controller
 tests a shared aim when gun lead and laser aim differ slightly. A ready gun
-can keep shooting while a laser cools or charges. A charged beam can release
-early for a weak target or to get the mech moving at full speed again. After
+can keep shooting while a laser cools or charges. A beam can release early
+for a finish after accounting for possible armor, or to get the mech moving
+at full speed again. After
 damage, a ready lightning arc and the gun can fire together while the mech
 still retreats, and a new laser charge cannot delay that retreat.
 

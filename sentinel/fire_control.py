@@ -78,6 +78,20 @@ def eligible_phase(weapon):
 class FireControl(Combat):
     """Keep farming and mortar behavior on the existing planner."""
 
+    def __init__(self, world, config):
+        super().__init__(world, config)
+        armor = next((upgrade for upgrade in config["upgrades"] if upgrade["id"] == "armor"), {})
+        self.armor_stacks = armor.get("max", 0)
+        self.armor_per_stack = sum(effect.get("add", 0) for effect in armor.get("effects", [])
+                                   if effect["path"] == "mech.armor")
+
+    def beam_damage_floor(self, me, target, damage):
+        cubes = self.config["cubes"]
+        eligible = sum(threshold <= target.get("cubes", 0) for threshold in cubes["upgrade_thresholds"])
+        armor = self.armor_per_stack * min(eligible, self.armor_stacks)
+        power = 1 + cubes["damage_per_cube"] * min(me["cubes"], cubes["stat_cap"])
+        return damage * power * (1 - armor)
+
     def actual_ray(self, me, center, radius, height, velocity, weapon, actual, after):
         kind = weapon["kind"]
         origin = muzzle(me, after)
@@ -191,7 +205,7 @@ class FireControl(Combat):
                     # End a costly slow-down early for an assured finish or
                     # to resume a sprint, but keep full damage in stable lanes.
                     hp = target.get("hp", target.get("max_hp", math.inf))
-                    release = (charge + 1e-7 >= full or hp <= damage * .95 or
+                    release = (charge + 1e-7 >= full or hp <= self.beam_damage_floor(me, target, damage) or
                                ((boost or defending) and charge >= max(.35, minimum)))
                     if charge > 0:
                         lined = self.actual_ray(me, center, radius, height, velocity, weapon, actual, STEP)

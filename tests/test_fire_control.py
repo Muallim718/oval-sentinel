@@ -75,6 +75,14 @@ class FireControlTests(unittest.TestCase):
         self.me["weapons"][1]["charge"] = self.config["weapons"]["laser"]["charge"]
         self.assertEqual(self.decide()[1], [True, False])
 
+    def test_unknown_armor_can_make_an_early_beam_nonlethal(self):
+        self.enemy.update(hp=145, cubes=6)
+        self.equip("laser", charge=.2)
+        self.align()
+        self.assertEqual(self.decide()[1], [True, True])
+        self.enemy["cubes"] = 0
+        self.assertEqual(self.decide()[1], [True, False])
+
     def test_gun_and_arc_can_fire_after_damage_during_escape(self):
         self.enemy["pos"] = [31, 0, 0]
         self.align()
