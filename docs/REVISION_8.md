@@ -94,7 +94,7 @@ cases still died before 25 s; quiet cube collection remained 12.35 s. See the
 [complete case table and limitations](GROUND_LAB.md). The real scored run decides
 whether to adopt this controller.
 
-Receipt `BB-1461B1AF` was submitted at 11:27 AM EST on 2026-11-21. The previous
+Receipt `BB-1461B1AF` was submitted at 11:27 AM EST on 2026-11-21. This
 entry scored **3.63** and replaced 3.25 as the selected best. The implied average
 placement is approximately 12.37. The observed board position was 156, with one
 hourly slot remaining and the next shown at 11:41 AM EST. No match-level results

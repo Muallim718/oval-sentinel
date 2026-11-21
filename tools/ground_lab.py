@@ -102,6 +102,9 @@ class Lab:
         if hasattr(self.bot, 'motion'):
             from sentinel.movement import GroundSteering
             self.bot.motion = GroundSteering(world, self.config)
+        if hasattr(self.bot, 'provision'):
+            from sentinel.provisioning import Provisioner
+            self.bot.provision = Provisioner(world, self.config)
         self.me = self.entity(0, [-55,-50,0], hp=650)
         if scenario == 'open_pursuit':
             enemy_positions = [[30,-50,0]]
