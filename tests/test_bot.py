@@ -16,7 +16,6 @@ from sentinel.geometry import Prism, World, angle_error
 from sentinel.navigation import Navigator
 from sentinel.strategy import Bot, future_circle
 from sentinel.memory import LootMemory
-from sentinel.elevation import RoofEscape
 
 
 def flat_world(prisms=()):
@@ -274,7 +273,6 @@ class TacticalRegressionTests(unittest.TestCase):
         self.bot.world = world
         self.bot.nav = Navigator(world,self.hello["config"]["mech"])
         self.bot.combat = Combat(world,self.hello["config"])
-        self.bot.elevation = RoofEscape(world,self.hello["config"]["mech"])
 
     def enemy(self,x=0,hp=1400):
         return {"id":1,"kind":"mech","pos":[x,0,0],"vel":[0,0,0],"aim":[math.pi,0],

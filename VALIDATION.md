@@ -1,5 +1,34 @@
 # Validation performed
 
+## Revision 3 checks
+
+**Experimental policy, not the default:** it scored 2.58 and was reverted in favor
+of the proven revision 2 policy (3.06). The experiment remains on the public
+`experiment/roof-recovery` branch.
+
+Bot commit `865fdb89536051f9df6a5ed65990dcb55dafa28f` passed the
+[Linux workflow](https://github.com/Muallim718/oval-sentinel/actions/runs/44915257926).
+
+- 47 behavioral tests passed locally and on Linux, including 12-, 25-, and
+  40-meter flight feedback and four sampled public-map roof sites.
+- Live-body route tests reject passages after body enlargement. Matchup tests
+  distinguish equal-health opponents with different weapons and cube scaling.
+- Restricted-container official checker: 300/300 on-time answers, zero misses;
+  p50 1.1 ms, p90 2.8 ms, p99 7.0 ms, maximum 13.3 ms on that runner.
+- Synthetic crowded-input benchmark on the Linux host: p99 26.21 ms,
+  maximum 30.77 ms, zero decisions above 50 ms. This benchmark was outside the
+  restricted container; only the official stream ran inside it.
+- Committed source: 35 files, 2,128,034 bytes, below 20 MB.
+
+The feedback models are limited tests, not the authoritative match engine.
+
+Receipt `BB-7E1019E7` was submitted on 2026-11-21 at 9:42 AM EST and completed
+with 2.58 placement points (-0.48 compared with revision 2). The site kept receipt
+`BB-F2A7BF5E` selected as the best entry. One rolling-hour attempt remained.
+After reverting the experiment, the runtime sources were compared against
+`0e193ba66fdca8f9b075ffbb1fc6a32b46b4a7f7`: `bot.py`, `mechfight.py`, and all
+`sentinel/` files match the proven revision 2 version exactly.
+
 ## Revision 2 checks
 
 Bot commit `0e193ba66fdca8f9b075ffbb1fc6a32b46b4a7f7` passed the

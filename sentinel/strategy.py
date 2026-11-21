@@ -7,11 +7,10 @@ import os
 import random
 from pathlib import Path
 from . import tuning
-from .combat import Combat, aim_at, sustained_dps
+from .combat import Combat, aim_at
 from .geometry import World, angle_error, distance, unit
 from .navigation import Navigator
 from .memory import LootMemory
-from .elevation import RoofEscape
 
 
 def future_circle(zone, now, seconds):
@@ -59,7 +58,6 @@ class Bot:
         self.mode = "loot"
         self.duel = None
         self.fight_range = 65.0
-        self.elevation = RoofEscape(self.world,self.config["mech"])
 
     def remember(self, obs):
         now = obs["t"]
@@ -106,23 +104,17 @@ class Bot:
         elif exposed:
             enemy = exposed[0]
             finish = enemy.get("hp",1400) < 170
-            second = next((w for w in me["weapons"] if w and w["kind"] != "gun"),None)
-            desired_range = 65
-            if second and second["kind"] == "lightning":
-                desired_range = second["stats"]["range"]*.78
-            elif second and second["kind"] == "laser":
-                desired_range = 110 if "mortar" in enemy.get("weapons",[]) else 90
-            elif "lightning" in enemy.get("weapons",[]):
-                desired_range = 85
-            own_kinds = [w["kind"] for w in me["weapons"] if w]
-            own_dps = sustained_dps(me["weapons"],self.config,me["cubes"],desired_range,enemy.get("weapons",[]))
-            enemy_dps = sustained_dps(enemy.get("weapons",["gun"]),self.config,enemy.get("cubes",0),desired_range,own_kinds)
-            our_ttk = enemy.get("hp",1400)/own_dps
-            their_ttk = me["hp"]/max(1,enemy_dps*(1-me["stats"].get("armor",0)))
-            favorable = ratio > 0.70 and our_ttk <= their_ttk*1.08
+            favorable = (ratio > 0.70 and enemy.get("hp",1400) < me["hp"]*1.12)
             if (favorable and not self.recovering) or finish:
                 self.mode, self.duel = "fight", enemy
-                self.fight_range = desired_range
+                second = next((w for w in me["weapons"] if w and w["kind"] != "gun"),None)
+                self.fight_range = 65
+                if second and second["kind"] == "lightning":
+                    self.fight_range = second["stats"]["range"]*0.78
+                elif second and second["kind"] == "laser":
+                    self.fight_range = 110 if "mortar" in enemy.get("weapons",[]) else 90
+                elif "lightning" in enemy.get("weapons",[]):
+                    self.fight_range = 85
             else:
                 self.mode = "recover" if self.recovering else "evade"
 
@@ -327,40 +319,6 @@ class Bot:
         old_mode = self.mode
         self.select_mode(obs)
         threats = sorted(self.threats(now), key=lambda ec: distance(me["pos"],ec[0]["pos"]))
-        self.nav.set_body(me["stats"])
-        threat_distance = distance(me["pos"],threats[0][0]["pos"]) if threats else math.inf
-        escape_needed = ((self.recovering and threat_distance < 145) or
-                         (self.mode == "evade" and threat_distance < 110))
-        refuge = self.elevation.update(obs,threats,future_circle(obs["zone"],now,25),escape_needed)
-        if refuge is not None:
-            self.mode,self.duel = "escape",None
-            if "approach" in refuge:
-                goal = refuge["approach"]
-                waypoint = self.nav.waypoint(me["pos"],goal,now,future_circle(obs["zone"],now,12),
-                                             [e["pos"] for e,c in threats[:5]])
-                self.sprinting = False
-                move,_,_ = self.steer(obs,waypoint,threats,True)
-                controls = {"move":move,"boost":False,"jump":False}
-            else:
-                controls = refuge
-            if threats:
-                ep = threats[0][0]["pos"]
-                aim = aim_at([*me["pos"][:2],me["pos"][2]+me["stats"]["muzzle_height"]],
-                             [*ep[:2],ep[2]+4.5])
-            else:
-                aim = me["aim"]
-            action = {"tick":obs["tick"],"aim":aim,"fire":[False,False],**controls}
-            if (me["weapons"][1] and me["weapons"][1]["kind"] == "mortar" and
-                    any("laser" in e.get("weapons",[]) for e,c in threats)):
-                action["drop"] = 1  # avoid laser cook-off while escaping
-            if obs.get("offer"):
-                action["pick"] = max(range(len(obs["offer"]["choices"])),
-                    key=lambda i:tuning.UPGRADE_VALUE.get(obs["offer"]["choices"][i]["id"],0))
-            gun = next((w for w in me["weapons"] if w and w["kind"] == "gun"),None)
-            action["reload"] = bool(gun and gun.get("reload",0) == 0 and gun.get("ammo",0) < gun["stats"]["mag"])
-            if self.debug:
-                action["debug"] = {"label":f"roof {self.elevation.phase} | HP {me['hp']:.0f}"}
-            return action
         retreat = self.recovering and self.mode != "fight"
         if self.goal is None or old_mode != self.mode or now >= self.next_goal or not me["in_zone"]:
             self.goal, self.goal_kind, self.circle = self.choose_goal(obs, retreat, threats)

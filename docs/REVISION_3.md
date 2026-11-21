@@ -1,5 +1,16 @@
 # Revision 3: body-aware routing, matchup decisions, and roof recovery
 
+**Outcome: 2.58**, below revision 2's **3.06** (-0.48 points, about -15.7%).
+Receipt `BB-7E1019E7` scored commit `865fdb89536051f9df6a5ed65990dcb55dafa28f`.
+The site retained revision 2 as the selected best entry. One hourly attempt
+remained immediately afterward.
+
+The default branch restores the exact revision 2 bot code. The full experiment
+and its tests remain public on
+[`experiment/roof-recovery`](https://github.com/Muallim718/oval-sentinel/tree/experiment/roof-recovery).
+This document records an experiment that did not improve the score, not the
+default policy's behavior.
+
 Revision 2 scored **3.06**. The event exposes an aggregate score, so the code and
 controlled feedback tests identify defects; they do not establish which defect
 caused each death in scored practice.
@@ -44,3 +55,21 @@ regeneration-safe triggers, and upgrades during escape.
 These feedback models are deliberately limited: they are not the authoritative
 server and do not reproduce combat or all eave/ledge collision details. The
 new scored practice submission is the deciding performance comparison.
+
+## What the result establishes
+
+The experimental build passed all 47 tests and the restricted Linux protocol
+check (300/300 on-time answers, maximum 13.3 ms). Its synthetic crowded-input
+benchmark peaked at 30.77 ms on that Linux host, outside the restricted container.
+Protocol success and controlled flight success did not transfer to a higher
+placement score.
+
+No individual-match outcomes were exposed. The combined result does not establish
+which of the roof controller, matchup restrictions, body-size changes, or their
+interactions caused the regression. In particular, the flight feedback tests do
+not model enemy attacks during takeoff, and enemy upgrades are unknown to the
+matchup estimate. These remain hypotheses, not measured causes of death.
+
+The next useful scored comparison should isolate a small change against revision
+2, such as the body-clearance correction alone, rather than adding another large
+bundle. No additional practice attempt was consumed after this result.
