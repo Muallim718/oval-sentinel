@@ -77,6 +77,39 @@ class ReloadArmTests(unittest.TestCase):
         self.advance()
         self.assertIsNotNone(self.choose())
 
+    def loaded_duel(self):
+        self.obs.update(t=100, tick=2000)
+        self.me["hp"] = self.me["max_hp"]
+        self.gun.update(ammo=12, reload=0)
+        self.enemy["pos"] = [55, 0, 0]
+        self.pickup["kind"] = "lightning"
+
+    def test_loaded_gun_can_take_a_bounded_sideways_duel_detour(self):
+        self.loaded_duel()
+        mission = self.choose()
+        self.assertIsNotNone(mission)
+        self.assertAlmostEqual(mission.eta, .65)
+        self.assertLessEqual(self.arm.current["until"]-self.obs["t"], 1.6)
+        self.assertIn("while firing", self.arm.reason)
+        self.me["hp"] = 850
+        self.advance()
+        self.assertIsNone(self.choose())
+
+    def test_loaded_guard_rejects_late_pressure_or_routing_toward_the_hunter(self):
+        for changed in ("late", "health", "ahead", "armed"):
+            with self.subTest(changed=changed):
+                self.setUp()
+                self.loaded_duel()
+                if changed == "late":
+                    self.obs.update(t=151, tick=3020)
+                elif changed == "health":
+                    self.me["hp"] = 1000
+                elif changed == "ahead":
+                    self.pickup["pos"] = [10, 0, 0]
+                else:
+                    self.enemy["weapons"] = ["gun", "laser"]
+                self.assertIsNone(self.choose())
+
     def test_covered_short_route_can_collect_while_recovering_without_reload(self):
         self.sheltered()
         mission = self.choose(recovering=True)
