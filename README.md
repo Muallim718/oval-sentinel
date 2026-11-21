@@ -7,6 +7,11 @@ library only. The `Dockerfile` is already at the repository root.
 
 Public repository: https://github.com/Muallim718/oval-sentinel
 
+**Revision 8 candidate:** a ground-cover and motion-controller redesign on top of
+3.25. It can commit to shelter, brake and hold it, reposition before a close flank,
+and recover without optional attacks. [Design and tests](docs/REVISION_8.md) are
+documented. The 3.25 entry remains selected until this candidate is scored.
+
 **Revision 7: 3.25 placement points**, a small increase over revision 4's 3.21.
 Brief gun self-defense during recovery after an incoming weapon hit is retained.
 The [isolated change, evidence, tests, and tradeoff](docs/REVISION_7.md) are

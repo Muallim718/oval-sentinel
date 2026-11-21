@@ -8,9 +8,11 @@ import random
 from pathlib import Path
 from . import tuning
 from .combat import Combat, aim_at
-from .geometry import World, angle_error, distance, unit
+from .geometry import World, distance, unit
 from .navigation import Navigator
 from .memory import LootMemory
+from .cover import CoverPlanner
+from .movement import GroundSteering
 
 
 def future_circle(zone, now, seconds):
@@ -41,6 +43,12 @@ class Bot:
         self.world = World(Path(hello["map"]["dir"]))
         self.nav = Navigator(self.world, self.config["mech"])
         self.combat = Combat(self.world, self.config)
+        self.cover = CoverPlanner(self.world, self.config)
+        self.motion = GroundSteering(self.world, self.config)
+        self.cover_active = False
+        self.cover_watch_goal = None
+        self.cover_watch_position = None
+        self.cover_watch_at = -1
         self.seen = {}
         self.goal, self.goal_kind = None, "rotate"
         self.next_goal = -1
@@ -231,81 +239,49 @@ class Bot:
             goal, kind = (self.nav.points[k][:2] if k is not None else tuple(circle[0])), "rotate"
         return goal, kind, circle
 
+    def shelter_circle(self, obs):
+        """Use the same detour allowance for cover that ordinary rotation gets."""
+        me, zone = obs["self"], obs["zone"]
+        remaining = max(0, distance(me["pos"], zone["next_center"])-zone["next_radius"]+18)
+        horizon = max(16, min(45, 12+remaining/me["stats"]["walk_speed"]*1.6))
+        return future_circle(zone, obs["t"], horizon)
+
     def steer(self, obs, waypoint, threats, retreat):
+        """Roll out bounded motion commands, then retain the existing jet escape."""
         me, now = obs["self"], obs["t"]
         p, stats = me["pos"], me["stats"]
-        desired = unit(waypoint[0]-p[0], waypoint[1]-p[1])
-        # A small orbit makes aim prediction harder while keeping zone progress.
-        nearby = [(e,c) for e,c in threats if distance(p,e["pos"]) < 140]
-        if nearby:
-            e = min(nearby, key=lambda ec: distance(p, ec[0]["pos"]))[0]
-            away = unit(p[0]-e["pos"][0], p[1]-e["pos"][1])
-            d = distance(p, e["pos"])
-            preferred = self.fight_range if self.mode == "fight" else tuning.PREFERRED_DISTANCE
-            force = max(-0.8 if self.mode == "fight" else 0, min(1.6,(preferred-d)/40))
-            orbit = math.sin(now*1.7+self.phase)
-            desired = unit(desired[0]+away[0]*force-away[1]*orbit*0.80,
-                           desired[1]+away[1]*force+away[0]*orbit*0.80)
-        if distance(p, waypoint) < 3 and not nearby:
-            return [0.0, 0.0], False, False
-        danger = min((distance(p,e["pos"]) for e,c in nearby), default=math.inf)
-        zone_ahead = future_circle(obs["zone"],now,6)
-        must_rotate = distance(p,zone_ahead[0]) > zone_ahead[1]-12
-        urgent = not me["in_zone"] or must_rotate or (danger < 80 and self.mode != "fight") or (retreat and now-self.last_damage < 3)
+        danger = min((distance(p, e["pos"]) for e, c in threats), default=math.inf)
+        zone_ahead = future_circle(obs["zone"], now, 6)
+        must_rotate = distance(p, zone_ahead[0]) > zone_ahead[1]-12
+        urgent = (not me["in_zone"] or must_rotate or
+                  (danger < 80 and self.mode != "fight") or
+                  (retreat and now-self.last_damage < 3))
         if self.sprinting:
             self.sprinting = urgent and me["energy"] > tuning.ENERGY_RESERVE
         else:
             self.sprinting = urgent and me["energy"] > tuning.ENERGY_RESERVE+24
-        speed = stats["boost_speed"] if self.sprinting else stats["walk_speed"]
-        travel = speed*0.45
-        angle = math.atan2(desired[1], desired[0])
-        best = None
-        circle = future_circle(obs["zone"], now, 2)
-        projectiles = sorted(obs["projectiles"], key=lambda pr: distance(p,pr["pos"]))[:12]
-        for offset in (0, 0.35, -0.35, 0.7, -0.7, 1.1, -1.1, 1.65, -1.65, math.pi):
-            yaw = angle+offset
-            move = (math.cos(yaw), math.sin(yaw))
-            # Include acceleration inertia in the near-term forecast.
-            q = (p[0]+move[0]*travel+me["vel"][0]*0.10,
-                 p[1]+move[1]*travel+me["vel"][1]*0.10, p[2])
-            if not self.world.walk_clear(p, q, stats["radius"]+0.3, stats["height"],
-                                         stats["step_up"], stats["max_slope_deg"]):
-                continue
-            score = distance(q, waypoint)*0.8 + abs(offset)*1.3
-            score += max(0, distance(q,circle[0])-circle[1]+4)*12
-            for enemy,c in nearby[:6]:
-                d = distance(q,enemy["pos"])
-                if self.mode == "fight":
-                    score += abs(d-self.fight_range)*0.30*c + max(0,20-d)*2
-                else:
-                    score += max(0, 75-d)*(1.4 if retreat else 0.8)*c
-                if enemy.get("charging"):
-                    ep = enemy["pos"]
-                    bearing = math.atan2(q[1]-ep[1],q[0]-ep[0])
-                    score += max(0, 1-abs(angle_error(bearing,enemy["aim"][0]))/0.12)*14
-            # Predict closest approach to moving bullets/shells over 0.45 s.
-            for projectile in projectiles:
-                pp, v = projectile["pos"], projectile["vel"]
-                rx, ry = pp[0]-p[0], pp[1]-p[1]
-                vx, vy = v[0]-move[0]*speed, v[1]-move[1]*speed
-                t = max(0, min(0.45, -(rx*vx+ry*vy)/(vx*vx+vy*vy or 1)))
-                d = math.hypot(rx+vx*t, ry+vy*t)
-                z = pp[2]+v[2]*t
-                if projectile["kind"] == "mortar":
-                    z -= self.config["weapons"]["mortar"]["gravity"]*t*t/2
-                if p[2]-3 < z < p[2]+stats["height"]+4:
-                    radius = stats["radius"]+(7 if projectile["kind"] == "mortar" else 1)
-                    score += max(0, radius+3-d)*7
-            if best is None or score < best[0]:
-                best = score, move
-        if self.last_position is not None and distance(p,self.last_position) < 0.18 and distance(p,waypoint) > 8:
+        move, self.sprinting = self.motion.choose(
+            obs, waypoint, threats, self.mode, self.fight_range, retreat,
+            sprinting=self.sprinting, cover=self.cover_active,
+            circle=future_circle(obs["zone"], now, 2))
+        if (self.last_position is not None and distance(p, self.last_position) < .18
+                and distance(p, waypoint) > 8):
             if self.stuck_since is None:
                 self.stuck_since = now
         else:
             self.stuck_since = None
         self.last_position = list(p)
         stuck = self.stuck_since is not None and now-self.stuck_since > 1.1
-        if (stuck or best is None) and me["grounded"] and me["energy"] > 58:
+        # A committed ground refuge must not turn into repeated blind jetting.
+        # Reject it and let the ordinary planner find a different route instead.
+        if self.cover_active and stuck:
+            self.cover.reject(self.goal, now)
+            self.cover_active = False
+            self.goal = None
+            self.next_goal = -1
+            self.stuck_since = None
+        elif (not self.cover_active and (stuck or self.motion.blocked) and
+              me["grounded"] and me["energy"] > 58):
             self.jet_until, self.jet_started_z = now+4, p[2]
             self.stuck_since = None
         jet = now < self.jet_until and not me["grounded"] and me["energy"] > 14
@@ -313,7 +289,6 @@ class Bot:
             self.jet_until = -1
             jet = False
         jump = now < self.jet_until and me["grounded"]
-        move = list(best[1]) if best else list(desired)
         return move, bool(jet or (self.sprinting and me["grounded"]) or jump), bool(jump)
 
     def act(self, obs):
@@ -323,8 +298,41 @@ class Bot:
         old_mode = self.mode
         self.select_mode(obs)
         threats = sorted(self.threats(now), key=lambda ec: distance(me["pos"],ec[0]["pos"]))
+        cover_goal = None
+        had_cover = self.cover_active
+        if self.recovering or self.mode == "evade":
+            cover_goal = self.cover.choose(obs, threats, self.shelter_circle(obs),
+                                           recovering=self.recovering)
+        if cover_goal is not None and self.cover.state == "approach":
+            changed = (self.cover_watch_goal is None or
+                       distance(cover_goal, self.cover_watch_goal) > 3)
+            progressed = (self.cover_watch_position is None or
+                          distance(me["pos"], self.cover_watch_position) >= 2)
+            if changed or progressed:
+                self.cover_watch_goal = cover_goal
+                self.cover_watch_position = tuple(me["pos"])
+                self.cover_watch_at = now
+            elif now-self.cover_watch_at > 3 and distance(me["pos"], cover_goal) > 4:
+                self.cover.reject(cover_goal, now)
+                cover_goal = None
+        else:
+            self.cover_watch_goal = self.cover_watch_position = None
+            if not (self.recovering or self.mode == "evade"):
+                self.cover.clear("healthy or no crossfire")
+        self.cover_active = cover_goal is not None
+        if self.cover_active:
+            self.goal, self.goal_kind = cover_goal, "cover"
+            self.objective = None
+            self.next_goal = now+tuning.GOAL_INTERVAL
+            self.jet_until = -1  # this is a ground refuge, not a flight destination
+            if self.recovering:
+                self.mode, self.duel = "recover", None
+        elif had_cover:
+            self.goal = None
+            self.next_goal = -1
         retreat = self.recovering and self.mode != "fight"
-        if self.goal is None or old_mode != self.mode or now >= self.next_goal or not me["in_zone"]:
+        if not self.cover_active and (self.goal is None or old_mode != self.mode or
+                                      now >= self.next_goal or not me["in_zone"]):
             self.goal, self.goal_kind, self.circle = self.choose_goal(obs, retreat, threats)
             self.next_goal = now+tuning.GOAL_INTERVAL
         circle = future_circle(obs["zone"], now, 12)
@@ -341,6 +349,10 @@ class Bot:
         return_fire = now-self.last_weapon_damage < 1.0
         aim, fire, target = self.combat.action(me, targets, retreat, obs["alive"] <= 2,
                                              return_fire=return_fire)
+        if self.cover_active and self.cover.sheltered and self.recovering:
+            # A weak target or an over-wall mortar must not restart the healing
+            # clock. Trigger-off releases any already-held laser into the cover.
+            aim, fire, target = None, [False, False], None
         if aim is None:
             # Face the nearest threat even while running the other way: rear hits
             # hurt 50% more. When quiet, periodically scan all directions.
@@ -374,6 +386,7 @@ class Bot:
                 if second:
                     action["drop"] = 1
         if self.debug:
+            debug_goal = self.goal or me["pos"][:2]
             action["debug"] = {"label": f"{self.mode}/{self.goal_kind} | HP {me['hp']:.0f}",
-                               "points": [{"at": [*self.goal,self.world.ground(*self.goal)], "color":"#40c0ff"}]}
+                               "points": [{"at": [*debug_goal,self.world.ground(*debug_goal)], "color":"#40c0ff"}]}
         return action
