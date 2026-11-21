@@ -9,21 +9,21 @@ Public repository: https://github.com/Muallim718/oval-sentinel
 
 **Revision 2** fixes combat reloads, remembers loot, commits to collection, uses
 weapon-specific duel spacing, and adds recovery hysteresis. Read
-[the diagnosis and changes](docs/REVISION_2.md). The 1.50 result below is the
-original version's baseline; revision 2 awaits its scored comparison.
+[the diagnosis and changes](docs/REVISION_2.md). **Revision 2 scored 3.06**, up
+from the original 1.50 (+1.56 points, +104%). It is the current best entry.
 
-**Linux sandbox verified:** the initial published bot passed all 21 behavioral
+**Linux sandbox verified:** revision 2 passed all 33 behavioral
 tests and the official restricted-container check (300/300 on-time answers;
-5.5 ms maximum response). See [VALIDATION.md](VALIDATION.md) for the run link.
+17.2 ms maximum response). See [VALIDATION.md](VALIDATION.md) for the run link.
 
 **Start here:** run the tests, create a public GitHub repository from this folder,
 wait for its Linux sandbox check to pass, then submit that repository's URL.
 
-**First scored practice result: 1.50 placement points**, versus the starter's
-1.15 (+0.35). Receipt `BB-3FEACC8C` scored commit `d8e307a9dc89bf858edb40993daf15581a9afe2b`
-on 2026-11-21. The site selected it as the team's current best entry. This is a
-working baseline, not a demonstrated winning entry; its observed board position
-was 233 of 247 teams when the result was read. No win rate was provided.
+**Best scored practice result: 3.06 placement points**, versus the starter's
+1.15 and the original version's 1.50. Receipt `BB-F2A7BF5E` scored commit
+`0e193ba66fdca8f9b075ffbb1fc6a32b46b4a7f7` on 2026-11-21. The observed board
+position was 173 of 249 teams when read. This is an improvement, not yet a
+near-top result. No win rate or individual-match results were provided.
 
 ## 1. Test it
 

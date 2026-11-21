@@ -1,5 +1,31 @@
 # Validation performed
 
+## Revision 2 checks
+
+Bot commit `0e193ba66fdca8f9b075ffbb1fc6a32b46b4a7f7` passed the
+[Linux workflow](https://github.com/Muallim718/oval-sentinel/actions/runs/44913981578).
+
+- 33 behavioral tests passed locally and on Linux, including controlled feedback
+  tests for cube collection around a wall and full-magazine sustained fire.
+- Restricted-container official checker: 300/300 on-time answers, zero misses;
+  p50 1.2 ms, p90 4.2 ms, p99 10.9 ms, maximum 17.2 ms on that runner.
+- Synthetic crowded-input benchmark on the Linux host: p99 31.95 ms,
+  maximum 36.33 ms, zero decisions above 50 ms. This benchmark was outside the
+  restricted container, as in the original workflow.
+- Committed source: 32 files, 2,098,802 bytes, below the 20 MB limit.
+- The same-stream policy audit changed enemy-visible partial-magazine reload
+  commands from 103 to zero. These counts are not actual match damage or score.
+
+### Revision 2 scored outcome
+
+Receipt `BB-F2A7BF5E`, submitted 2026-11-21 at 9:28 AM EST, completed with
+**3.06** placement points on that verified commit. That is +1.56 points (+104%)
+over the original 1.50. Approximate implied average placement: 12.94. The observed
+board position was 173 of 249 teams, and the site selected it as the current best
+entry. No match-level breakdown was exposed. Two hourly submission slots remained.
+
+The original version's validation and first practice result follow below.
+
 Prepared and tested on **2026-11-21** on Windows with Python 3.13.
 These are local observations, not results from the scorer's Linux sandbox.
 

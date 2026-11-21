@@ -32,9 +32,21 @@ tool. The improved regression suite includes simplified movement and weapon
 feedback models derived from the published rules; it does not replace the game's
 authoritative simulation or measure performance against the house squad.
 
+## Scored outcome
+
+Receipt `BB-F2A7BF5E` scored commit
+`0e193ba66fdca8f9b075ffbb1fc6a32b46b4a7f7` at **3.06**, up from **1.50**:
++1.56 placement points, or +104%. The event automatically selected revision 2 as
+the team's best entry. The observed ranking was 173 of 249 teams. Two submission
+slots remained in the rolling hour immediately after this run.
+
+The Linux workflow passed all 33 behavioral tests and the 300-observation
+restricted-container check without a missed deadline (maximum response 17.2 ms).
+
 ## Remaining uncertainty
 
-The scored practice run is the deciding comparison. The larger set of changes
+The scored practice run establishes an aggregate improvement. The larger set of changes
 addresses interacting defects but does not isolate each one's score contribution.
 Ground-only strategic navigation and incomplete enemy-motion prediction remain
-limitations. No near-top score is claimed before the scorer measures it.
+limitations. This result is still below the leaders and does not establish a
+near-top or winning strategy. No individual-match outcomes were exposed.
