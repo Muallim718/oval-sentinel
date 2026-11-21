@@ -7,65 +7,32 @@ library only. The `Dockerfile` is already at the repository root.
 
 Public repository: https://github.com/Muallim718/oval-sentinel
 
-**Revision 10 candidate:** proactive roof access and persistent holding on top
-of the 3.63 controller. [Behavior, flight tests, and limitations](docs/REVISION_10.md)
-are documented. The 3.63 entry remains selected until this candidate is scored.
+**Best scored entry: 3.63 placement points**, up from 3.25 (+0.38), with the
+[ground-cover and movement redesign](docs/REVISION_8.md). Receipt `BB-1461B1AF`
+scored commit `9bf75d70a8d209a1dd8ea4f67415ee93a9cbf7f0` on 2026-11-21 at
+11:27 AM EST. It remains selected and is preserved by the `score-3.63` tag.
+This is below the leading teams; the site provides no individual match breakdown.
 
-**Revision 9 experiment: 3.58**, below the 3.63 best. The readiness/resource
-policy was not adopted, and the default runtime matches the 3.63 controller.
-[Evidence and result](docs/REVISION_9.md) are recorded; the full experiment is
-public on [`experiment/readiness`](https://github.com/Muallim718/oval-sentinel/tree/experiment/readiness).
+| Version | Change | Practice score |
+| --- | --- | ---: |
+| [7](docs/REVISION_7.md) | Recovery self-defense baseline | 3.25 |
+| [8](docs/REVISION_8.md) | Committed cover and predictive steering | **3.63** |
+| [9](docs/REVISION_9.md) | Readiness and protected resource acquisition | 3.58 |
+| [10](docs/REVISION_10.md) | Proactive rooftop sanctuary | 3.40 |
 
-**Revision 8: 3.63 placement points**, up from 3.25 (+0.38). The ground-cover and
-motion-controller redesign is retained. It commits to shelter, brakes and holds
-it, repositions before a close flank, and recovers without optional attacks.
-[Design, tests, and scored outcome](docs/REVISION_8.md) are documented. This is
-the current best entry.
+The rooftop experiment is undergoing a correction: its original zone check can
+abandon a safe roof because the old ground launch point is outside the future
+circle. Experimental runtime is currently on `main`; use the `score-3.63` tag
+for the best scored controller until the comparison is complete.
 
-**Revision 7: 3.25 placement points**, a small increase over revision 4's 3.21.
-Brief gun self-defense during recovery after an incoming weapon hit is retained.
-The [isolated change, evidence, tests, and tradeoff](docs/REVISION_7.md) are
-documented. It is the baseline used for revision 8.
+**Linux sandbox verified:** revision 10 passed 116 behavioral tests and the
+official restricted-container check, with 300/300 on-time answers and a 14.0 ms
+maximum response. The best scored revision 8 passed 80 tests and the same
+300-answer check. See [VALIDATION.md](VALIDATION.md) for exact runs and limits.
 
-**Revision 6 experiment: 3.10**, below the 3.21 best. Preferring lightning and
-replacing idle lasers was not adopted. Revision 4 was restored before revision 7.
-[Findings and tests](docs/REVISION_6.md) are recorded, and the candidate remains
-public on [`experiment/lightning-preference`](https://github.com/Muallim718/oval-sentinel/tree/experiment/lightning-preference).
-
-**Revision 5 experiment: 3.13**, below the 3.21 best. The gun/laser coordination
-change was not adopted; revision 4 was restored before subsequent experiments.
-The [experiment and findings](docs/REVISION_5.md) remain available on
-[`experiment/shared-aim`](https://github.com/Muallim718/oval-sentinel/tree/experiment/shared-aim).
-
-**Revision 4: 3.21 placement points**, up from revision 2's 3.06 (+0.15).
-Body-size-aware routing alone is retained on top of revision 2.
-Combat and other strategic choices are unchanged. The [isolated change and tests](docs/REVISION_4.md)
-and scored outcome are documented. This remains the baseline for revision 7.
-
-**Revision 3 experiment: 2.58**, below revision 2's 3.06. The default policy was
-restored to revision 2 before the isolated revision 4 change was tested. The
-unsuccessful experiment is preserved on
-[`experiment/roof-recovery`](https://github.com/Muallim718/oval-sentinel/tree/experiment/roof-recovery).
-[Read the changes and measured outcome](docs/REVISION_3.md).
-
-**Revision 2** fixes combat reloads, remembers loot, commits to collection, uses
-weapon-specific duel spacing, and adds recovery hysteresis. Read
-[the diagnosis and changes](docs/REVISION_2.md). **Revision 2 scored 3.06**, up
-from the original 1.50 (+1.56 points, +104%).
-
-**Linux sandbox verified:** revision 8 passed all 80 behavioral
-tests and the official restricted-container check (300/300 on-time answers;
-14.0 ms maximum response). See [VALIDATION.md](VALIDATION.md) for the run link.
-
-**Start here:** run the tests, create a public GitHub repository from this folder,
-wait for its Linux sandbox check to pass, then submit that repository's URL.
-
-**Best scored practice result: 3.63 placement points**, versus the starter's
-1.15 and the original version's 1.50. Receipt `BB-1461B1AF` scored commit
-`9bf75d70a8d209a1dd8ea4f67415ee93a9cbf7f0` on 2026-11-21 at 11:27 AM EST.
-The observed board position was 156 when read. This improves the displayed score
-by 0.38 over 3.25, but remains below the leading teams. No win rate or individual
-match results were provided. The prior baseline is tagged `score-3.25`.
+**Start here:** run the checks below, read [the strategy](docs/STRATEGY.md), and
+consult the [full submission history](docs/PRACTICE_LOG.csv). Experiments that
+scored lower are archived publicly; they do not replace the selected best entry.
 
 ## 1. Test it
 

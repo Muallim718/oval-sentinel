@@ -1,5 +1,37 @@
 # Validation performed
 
+## Revision 10: proactive roof sanctuary
+
+Commit `7edf73c69c0661c98cc1f2fd53096af62d130bf9` passed the
+[Linux workflow](https://github.com/Muallim718/oval-sentinel/actions/runs/44930483153).
+This adds early roof access/holding/physical exits to revision 8's 3.63 policy;
+revision 9's unsuccessful readiness/resource policy is not included.
+
+- All 116 behavioral tests passed locally and on Linux: previous 80, eight
+  roof-core tests, ten independent physics/flight tests, and eighteen integration
+  tests. Seven complete flight traces cover 12/25/40 m synthetic roofs and four
+  public-map roofs; the 40 m case retains 29.5 energy from an initial 100.
+- Local official checker: 300/300 on-time answers, maximum 9.1 ms.
+- Restricted-container official checker: 300/300 on-time answers, zero misses;
+  p50 1.8 ms, p90 2.6 ms, p99 5.7 ms, maximum 14.0 ms on that runner.
+- Linux host crowded/growing-body maxima: 25.87 and 16.06 ms, zero above 50 ms.
+- Separate quiet-map search benchmark on Linux: 40 fresh bots, 12 roof plans;
+  maximum decision 3.54 ms, maximum startup 558.3 ms, zero decisions above 50 ms.
+  This exercises proactive search rather than the nearby-hunter veto.
+- Committed source: 56 files, 2,303,209 bytes, below 20 MB.
+
+Flight feedback models whole-body ceilings, walls, jumps, jets, energy, and roof
+edge support, but not authoritative combat or exact server eave resolution.
+These results establish tested control behavior, not scored performance.
+
+Receipt `BB-7E1DFF95` was submitted on 2026-11-21 at 12:33 PM EST after these
+checks and scored **3.40**, implying average placement approximately 12.60.
+Revision 8's 3.63 remains selected. Post-submission code review found that the
+zone check can abandon a safe roof because the old ground launch is outside
+the future circle. This is a demonstrated control flaw, not an established
+explanation of the aggregate score. The submitted candidate is preserved on
+`experiment/proactive-roofs` for comparison with a correction.
+
 ## Revision 9: readiness and secured resource acquisition
 
 **Experimental, not the default:** scored **3.58**, 0.05 below revision 8's

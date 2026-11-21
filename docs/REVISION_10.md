@@ -71,3 +71,23 @@ on-time replies, zero protocol errors, startup 413 ms, p99 response 3.6 ms and
 maximum 9.1 ms. Crowded and growing-body timing maxima were 21.58 and 22.76 ms.
 The separate 40-position quiet-map check started 12 roof plans, with maximum
 decision 2.37 ms and maximum fresh-bot startup 419.7 ms; none exceeded 50 ms.
+
+## Linux validation and scored entry
+
+Commit `7edf73c69c0661c98cc1f2fd53096af62d130bf9` passed the
+[Linux workflow](https://github.com/Muallim718/oval-sentinel/actions/runs/44930483153):
+all 116 tests, pinned image build, and 300/300 on-time restricted-container
+responses, p99 5.7 ms and maximum 14.0 ms. Linux host crowded/growing-body timing
+maxima were 25.87/16.06 ms. Forty fresh quiet-map starts produced 12 roof plans,
+with maximum decision 3.54 ms and startup 558.3 ms; no decisions exceeded 50 ms.
+The committed source was 2,303,209 bytes, below 20 MB.
+
+Receipt `BB-7E1DFF95` was submitted at 12:33 PM EST on 2026-11-21 and scored
+**3.40**, 0.23 below revision 8. The 3.63 entry remains selected.
+
+Code review after submission found an important limitation: the zone check
+requires the abandoned ground launch point to remain safe even after landing.
+It can therefore force an exit from a roof whose holding position is safe.
+The immutable scored candidate is preserved on `experiment/proactive-roofs`;
+a corrected comparison will distinguish this control flaw from the wider roof
+strategy. The aggregate result alone cannot establish the cause of the decline.
