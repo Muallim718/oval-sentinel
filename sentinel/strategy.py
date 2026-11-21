@@ -471,17 +471,20 @@ class Bot:
         # shelter or continuing regeneration takes priority over a viable shot.
         repairing = self.recovering and self.quiet_window.repair(
             obs, sheltered=self.cover_active and self.cover.sheltered and me["grounded"])
+        finish_beam = (repairing and charging and active and
+                       self.quiet_window.reason == "observed regeneration")
         attack_retreat = retreat
-        if retreat and active and not repairing:
-            targets = [target for target in targets if target["kind"] == "mech"]
+        if (retreat and active and not repairing) or finish_beam:
+            targets = [target for target in targets if target.get("kind") == "mech"]
             attack_retreat = False
+        forced_weapon = "laser" if finish_beam else "gun" if opening is not None else None
         return_fire = now-self.last_weapon_damage < 1.0
         aim, fire, target = self.combat.action(me, targets, attack_retreat, obs["alive"] <= 2,
                                              return_fire=return_fire,
-                                             forced_weapon="gun" if opening is not None else None)
-        if repairing:
-            # A weak target or an over-wall mortar must not restart the healing
-            # clock. Trigger-off releases any already-held laser into the cover.
+                                             forced_weapon=forced_weapon)
+        if repairing and (not finish_beam or target is None):
+            # A current shelter or quiet interval owns silence. A holding
+            # laser aimed into cover will release as its trigger drops.
             aim, fire, target = None, [False, False], None
         if aim is None:
             # Face the nearest threat even while running the other way: rear hits

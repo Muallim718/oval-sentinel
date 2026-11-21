@@ -113,6 +113,29 @@ class QuietWindowTests(unittest.TestCase):
         self.assertEqual(action["fire"], [False, False])
         self.assertEqual(bot.quiet_window.reason, "verified shelter")
 
+    def test_existing_beam_keeps_its_charge_when_exposed_regeneration_begins(self):
+        bot = self.bot()
+        laser = dict(kind="laser", charge=0, cooldown=0,
+                     stats=copy.deepcopy(self.hello["config"]["weapons"]["laser"]))
+        self.me["weapons"][1] = laser
+        self.me["aim"] = bot.combat.solve(self.me, self.enemy, laser)[0]
+        self.assertTrue(bot.act(self.obs)["fire"][1])
+
+        self.obs.update(t=10.1, tick=202)
+        self.me["hp"] += 4.5
+        laser["charge"] = .1
+        self.assertEqual(bot.act(self.obs)["fire"], [False, True])
+        self.assertEqual(bot.quiet_window.reason, "observed regeneration")
+
+        for tick in range(2, 9):
+            self.obs.update(t=10+tick*.1, tick=200+tick*2)
+            self.me["hp"] += 4.5
+            laser["charge"] = min(tick*.1, laser["stats"]["charge"])
+            action = bot.act(self.obs)
+            if tick < 8:
+                self.assertEqual(action["fire"], [False, True])
+        self.assertEqual(action["fire"], [False, False])
+
     def test_demonstrated_repair_does_not_restart_a_movement_duel(self):
         bot = self.bot()
         # A new otherwise-admissible duel cannot discard a working repair.
