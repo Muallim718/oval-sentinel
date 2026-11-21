@@ -127,6 +127,20 @@ class Combat:
         _, primary, target, solution = max(options, key=lambda o: o[0])
         self.locked_id = target.get("id")
         aim, point, radius, height = solution
+        primary_weapon = me["weapons"][primary]
+        coordinated_charge = False
+        # A charging laser does not need hitscan aim until release. Keep the
+        # gun's projectile lead during the charge, then acquire the beam angle.
+        if (primary_weapon["kind"] == "laser" and
+                primary_weapon.get("charge",0) < primary_weapon["stats"]["charge"]):
+            for other in me["weapons"]:
+                if (other and other["kind"] == "gun" and other.get("ammo",0) > 0
+                        and other.get("reload",0) <= 0):
+                    gun_solution = self.solve(me,target,other)
+                    if gun_solution is not None:
+                        aim = list(gun_solution[0])
+                        coordinated_charge = True
+                    break
         stats_me = me["stats"]
         aim[1] = max(stats_me.get("min_pitch", -0.7), min(stats_me.get("max_pitch", 1.3), aim[1]))
         fire = [False, False]
@@ -146,7 +160,13 @@ class Combat:
             aligned = yaw_error < math.atan2(r+0.3, d) and pitch_error < math.atan2(h*0.44, d)
             kind, stats = weapon["kind"], weapon["stats"]
             if kind == "gun":
-                fire[slot] = aligned and weapon.get("ammo", 0) > 0 and weapon.get("reload", 0) <= 0
+                compatible = True
+                if primary_weapon["kind"] == "laser" and not coordinated_charge:
+                    # The shared torso will turn before either simulation tick's
+                    # shot. Do not spend a round into the beam's incompatible aim.
+                    compatible = (abs(angle_error(desired[0],aim[0])) < math.atan2(r+.3,d) and
+                                  abs(desired[1]-aim[1]) < math.atan2(h*.44,d))
+                fire[slot] = aligned and compatible and weapon.get("ammo", 0) > 0 and weapon.get("reload", 0) <= 0
             elif kind == "lightning":
                 fire[slot] = (yaw_error < math.radians(stats["cone_deg"])*0.45 and
                               me["energy"] > stats["energy"]+8)
@@ -156,7 +176,7 @@ class Combat:
                 if charge > 0:
                     fire[slot] = not (charge >= stats["charge"] and aligned and same_aim)
                 else:
-                    fire[slot] = same_aim and (not retreat or d > 65)
+                    fire[slot] = (same_aim or coordinated_charge) and (not retreat or d > 65)
             elif slot == primary:
                 fire[slot] = yaw_error < 0.035 and pitch_error < 0.025
         return aim, fire, target
