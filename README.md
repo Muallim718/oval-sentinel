@@ -7,12 +7,12 @@ library only. The `Dockerfile` is already at the repository root.
 
 Public repository: [Muallim718/oval-sentinel](https://github.com/Muallim718/oval-sentinel)
 
-**Best scored entry is 4.19 placement points.** Oval Sentinel uses observed
-aggression to choose its fights and keeps isolated early duels committed.
-Receipt `BB-8312DB68` scored commit
-`95a644460964134a3f3684b8e2ed45f4bf6e403c` on 2026-11-21 at 5:17 PM EST.
-The site selected it automatically. The `score-4.19` tag preserves the exact
-submission. [Attacker selection and practice result](docs/REVISION_35.md)
+**Best scored entry is 4.31 placement points.** Oval Sentinel can keep firing
+at observed pursuers while it moves to cover. Actual shelter or regeneration
+takes priority once a quiet repair window opens. Receipt `BB-D2773F9B` scored
+commit `227cea87a7f24da9824d644b15f8524710f5c211` on 2026-11-21 at 5:34 PM EST.
+The site selected it automatically. The `score-4.31` tag preserves the exact
+submission. [Combat recovery and practice result](docs/REVISION_38.md)
 
 | Version | Change | Practice score |
 | --- | --- | ---: |
@@ -30,11 +30,12 @@ submission. [Attacker selection and practice result](docs/REVISION_35.md)
 | [20](docs/REVISION_20.md) | Sustain isolated duels through the first waves | **4.04** |
 | [23](docs/REVISION_23.md) | Repair and rearm during the gap after a kill | 4.00 |
 | [35](docs/REVISION_35.md) | Commit to fights with observed attackers | **4.19** |
+| [38](docs/REVISION_38.md) | Keep fighting while escaping and protect actual repairs | **4.31** |
 
-**The default runtime matches the 4.19 controller.** The exact source and
+**The default runtime matches the 4.31 controller.** The exact source and
 tests for earlier revisions remain public in their tags and experiment branches.
 
-**Linux sandbox verified.** Revision 35 passed 128 tests. The official
+**Linux sandbox verified.** Revision 38 passed 137 tests. The official
 restricted-container check received 300/300 on-time replies, with an 11.4 ms
 maximum response. [Validation and experimental results](VALIDATION.md)
 

@@ -24,3 +24,12 @@ search can change a close outcome. Official practice measures placement.
 All 137 local tests passed. The official protocol checker received 300 of 300
 on-time answers with a 7.9 ms maximum. The crowded and growing-body checks
 had maximum decision times of 20.49 and 14.95 ms.
+
+Commit `227cea87a7f24da9824d644b15f8524710f5c211` passed
+[Linux and the restricted container](https://github.com/Muallim718/oval-sentinel/actions/runs/44957329210).
+All 137 tests passed and the container answered 300/300 on time, with p99
+9.1 ms and an 11.4 ms maximum.
+
+Practice receipt `BB-D2773F9B` scored **4.31** on November 21, 2026 at 5:34 PM
+EST. That is 0.12 above 4.19 and corresponds to approximately 11.69 mean
+placement over 48 matches. The practice site selected it automatically.

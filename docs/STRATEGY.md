@@ -3,15 +3,12 @@
 ## Why survival comes first
 
 Placement determines the score, and health can regenerate after five seconds
-without dealing or receiving damage. Firing at a distant opponent while trying
-to recover prevents that recovery. Sentinel therefore stops optional ranged
-fights when recovery begins below 58% HP, and stays in recovery until 90% HP.
-It still defends itself at close range and finishes very weak opponents. For one
-second after an incoming weapon hit, it can also return gun fire at a visible
-pursuer while continuing to escape. Healing is already interrupted under incoming
-fire. This exception ends when hits cease, does not activate for zone damage, and
-does not enable secondary weapons for the newly permitted targets. Return hits
-can delay healing after escape, so the exception is deliberately brief.
+without dealing or receiving damage. Sentinel starts seeking recovery below
+58% HP and stays in recovery until 90% HP. While steering toward safety,
+it can use both weapons against an observed pursuer. Once its present body
+is sheltered or the bot observes real regeneration, it gives repairs priority.
+Incoming rounds or an exposed laser can interrupt that window. Cube and upgrade
+health increases are distinguished from regeneration.
 
 The thresholds are preferences, not game rules. Hysteresis prevents premature
 returns to combat after only a small amount of healing.

@@ -1,8 +1,16 @@
 # Validation performed
 
-## Current default, revision 35
+## Current default, revision 38
 
-The selected **4.19** controller checks for an observed attack, approach, or
+The selected **4.31** controller separates escape movement from attack
+permission. Verified shelter or observed regeneration reserves a quiet
+repair window. All 137 tests passed locally and on Linux. The restricted
+container answered 300/300 on time, with p99 9.1 ms and an 11.4 ms maximum.
+[Repair design, physical cases, and score](docs/REVISION_38.md)
+
+## Revision 35: choose fights from observed aggression
+
+The **4.19** controller checks for an observed attack, approach, or
 firing posture before starting an optional fight. All 128 tests passed
 locally and on Linux. The restricted container answered 300/300 on time,
 with p99 8.5 ms and an 11.4 ms maximum.
