@@ -1,4 +1,4 @@
-"""Recovery self-defense without turning the escape into a charged-weapon duel."""
+"""Recovery motion and independent hostile fire, including physical quiet gaps."""
 import copy
 import math
 import unittest
@@ -50,23 +50,28 @@ class ReturnFireTests(unittest.TestCase):
         self.assertTrue(action["boost"])
 
     def test_quiet_recovery_and_outgoing_hits_do_not_start_return_fire(self):
+        self.enemy["aim"] = [0, 0]  # No public evidence of an attack.
         self.assertEqual(self.bot.act(self.obs)["fire"], [False, False])
         self.obs["events"] = [{"type": "hit", "target": 1, "amount": 45,
                                "weapon": "gun"}]
         self.assertEqual(self.bot.act(self.obs)["fire"], [False, False])
 
     def test_zone_damage_does_not_start_optional_fight(self):
+        self.enemy["aim"] = [0, 0]
         self.damage("zone")
         self.assertEqual(self.bot.act(self.obs)["fire"], [False, False])
 
-    def test_return_fire_expires_after_one_second_without_incoming_hits(self):
+    def test_observed_pursuer_does_not_lose_attack_permission_after_one_second(self):
         self.damage()
         self.assertTrue(self.bot.act(self.obs)["fire"][0])
         self.obs.update(t=10.9, tick=218, events=[])
         self.assertTrue(self.bot.act(self.obs)["fire"][0])
         self.obs.update(t=11.0, tick=220)
-        self.assertEqual(self.bot.act(self.obs)["fire"], [False, False])
+        self.assertTrue(self.bot.act(self.obs)["fire"][0])
         self.assertTrue(self.bot.recovering)
+        self.enemy["aim"] = [0, 0]
+        self.obs.update(t=22.1, tick=442)
+        self.assertEqual(self.bot.act(self.obs)["fire"], [False, False])
 
     def test_misaligned_empty_and_reloading_guns_do_not_fire(self):
         self.damage()
@@ -80,14 +85,20 @@ class ReturnFireTests(unittest.TestCase):
         self.gun.update(ammo=12, reload=1.2)
         self.assertFalse(self.bot.act(self.obs)["fire"][0])
 
-    def test_secondary_weapons_are_not_started_during_return_fire(self):
+    def test_useful_secondaries_can_fire_while_the_legs_keep_recovering(self):
         self.damage()
         for kind in ("laser", "mortar", "lightning"):
             with self.subTest(kind=kind):
                 self.me["weapons"][1] = {
                     "kind": kind, "charge": 0, "cooldown": 0,
                     "stats": copy.deepcopy(self.hello["config"]["weapons"][kind])}
-                self.assertEqual(self.bot.act(self.obs)["fire"], [True, False])
+                self.enemy["pos"][0] = -35 if kind == "lightning" else 0
+                solved = self.bot.combat.solve(self.me, self.enemy, self.me["weapons"][1])
+                self.assertIsNotNone(solved)
+                self.me["aim"] = solved[0]
+                action = self.bot.act(self.obs)
+                self.assertTrue(action["fire"][1])
+                self.assertEqual(self.bot.mode, "recover")
 
     def test_cover_range_and_passive_targets_still_block_return_fire(self):
         combat = Combat(flat_world([rectangle(-40, -20, -35, 20)]),
@@ -116,6 +127,8 @@ class ReturnFireTests(unittest.TestCase):
             self.obs.update(t=10+decision*.1, tick=200+decision*2, events=[])
             if decision < 80 and decision % 5 == 0:
                 self.damage()
+            if decision >= 80:
+                self.obs["mechs"] = []  # Pressure is no longer observed.
             action = self.bot.act(self.obs)
             self.me["aim"] = action["aim"]
             if action["fire"][0]:
