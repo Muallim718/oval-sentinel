@@ -7,6 +7,10 @@ library only. The `Dockerfile` is already at the repository root.
 
 Public repository: https://github.com/Muallim718/oval-sentinel
 
+**Revision 6 candidate:** prefer lightning over laser and allow safe slot-1
+replacement, on top of the 3.21 version. [Hypothesis and tests](docs/REVISION_6.md)
+are recorded; the new candidate has not yet been scored.
+
 **Revision 5 experiment: 3.13**, below the 3.21 best. The gun/laser coordination
 change was not adopted; the runtime code on `main` matches the proven revision 4.
 The [experiment and findings](docs/REVISION_5.md) remain available on
