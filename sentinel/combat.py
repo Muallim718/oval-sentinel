@@ -39,6 +39,7 @@ def target_center(target, config):
 class Combat:
     def __init__(self, world, config):
         self.world, self.config = world, config
+        self.locked_id = None
 
     def solve(self, me, target, weapon):
         origin = list(me["pos"])
@@ -96,7 +97,7 @@ class Combat:
         for target in targets[:8]:
             d = distance(me["pos"], target["pos"])
             hostile = target.get("kind") == "mech"
-            if retreat and not final_duel and (not hostile or d > 50) and target.get("hp", 1400) > 130:
+            if retreat and not final_duel and (not hostile or d > 28) and target.get("hp", 1400) > 130:
                 continue
             for slot, weapon in enumerate(me["weapons"]):
                 if weapon is None:
@@ -106,11 +107,8 @@ class Combat:
                     continue
                 aim, point, radius, height = solution
                 kind, stats = weapon["kind"], weapon["stats"]
-                # Don't let an unavailable secondary weapon steal the torso.
-                if weapon.get("cooldown", 0) > 0.12 and not weapon.get("charge", 0):
-                    continue
-                if kind == "gun" and (weapon.get("reload", 0) > 0 or weapon.get("ammo", 1) <= 0):
-                    continue
+                # Keep tracking between gun shots. Dropping the target during a
+                # 0.24 s cooldown used to reset aim and trigger early reloads.
                 if kind == "lightning" and me["energy"] < stats.get("energy", 3)+8:
                     continue
                 if kind == "laser" and retreat and d < 65 and not weapon.get("charge", 0):
@@ -118,11 +116,16 @@ class Combat:
                 score = (150 if hostile else 0) + 80/(1+d/45)
                 score += 55*(1-target.get("hp", 1400)/target.get("max_hp", 1400)) if hostile else 0
                 score += {"gun": 15, "laser": 42, "lightning": 60, "mortar": 25}[kind]
-                score += 75 if weapon.get("charge", 0) else 0
+                score += 120 if weapon.get("charge", 0) else 0
+                score += 24 if target.get("id") == self.locked_id else 0
+                score -= weapon.get("cooldown", 0)*65
+                if kind == "gun" and (weapon.get("reload", 0) > 0 or weapon.get("ammo", 1) <= 0):
+                    score -= 65
                 options.append((score, slot, target, solution))
         if not options:
             return None, [False, False], None
         _, primary, target, solution = max(options, key=lambda o: o[0])
+        self.locked_id = target.get("id")
         aim, point, radius, height = solution
         stats_me = me["stats"]
         aim[1] = max(stats_me.get("min_pitch", -0.7), min(stats_me.get("max_pitch", 1.3), aim[1]))

@@ -7,6 +7,11 @@ library only. The `Dockerfile` is already at the repository root.
 
 Public repository: https://github.com/Muallim718/oval-sentinel
 
+**Revision 2** fixes combat reloads, remembers loot, commits to collection, uses
+weapon-specific duel spacing, and adds recovery hysteresis. Read
+[the diagnosis and changes](docs/REVISION_2.md). The 1.50 result below is the
+original version's baseline; revision 2 awaits its scored comparison.
+
 **Linux sandbox verified:** the initial published bot passed all 21 behavioral
 tests and the official restricted-container check (300/300 on-time answers;
 5.5 ms maximum response). See [VALIDATION.md](VALIDATION.md) for the run link.
@@ -72,6 +77,7 @@ Think of each decision as five questions:
 | `bot.py` | Tiny entry point. |
 | `sentinel/strategy.py` | Those five decisions; read this first. |
 | `sentinel/tuning.py` | Strategy preferences and upgrade priorities. |
+| `sentinel/memory.py` | Previously observed loot and stale-item removal. |
 | `sentinel/navigation.py` | A* routes around buildings; searches can continue across decisions. |
 | `sentinel/geometry.py` | Terrain heights, walls, courtyards, bridges, and shot obstruction. |
 | `sentinel/combat.py` | Bullet leading, mortar arcs, laser charging, and lightning checks. |
@@ -79,6 +85,7 @@ Think of each decision as five questions:
 | `tests/test_bot.py` | Focused behavior regressions. |
 | `tools/verify.py` | The single verification command. |
 | `tools/benchmark.py` | Recorded and synthetic decision latency checks. |
+| `tools/diagnose.py` | Policy-output audit of the kit recording. |
 | `docs/protocol.md` | Official rules and message specification. |
 
 Read [docs/STRATEGY.md](docs/STRATEGY.md) for the reasoning and tradeoffs.

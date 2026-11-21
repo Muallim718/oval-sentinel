@@ -15,6 +15,7 @@ from sentinel.combat import Combat, intercept
 from sentinel.geometry import Prism, World, angle_error
 from sentinel.navigation import Navigator
 from sentinel.strategy import Bot, future_circle
+from sentinel.memory import LootMemory
 
 
 def flat_world(prisms=()):
@@ -166,6 +167,17 @@ class WeaponTests(unittest.TestCase):
         combat = Combat(flat_world([rectangle(-30,-20,-25,20)]),self.config)
         self.assertIsNone(combat.solve(self.me,self.enemy,self.weapon("gun",ammo=12,reload=0)))
 
+    def test_gun_keeps_tracking_and_trigger_during_cooldown(self):
+        gun = self.weapon("gun",ammo=5,reload=0)
+        gun["cooldown"] = 0.19
+        self.me["weapons"] = [gun,None]
+        desired = self.combat.solve(self.me,self.enemy,gun)[0]
+        self.me["aim"] = desired
+        aim,fire,target = self.combat.action(self.me,[self.enemy],False,False)
+        self.assertIsNotNone(aim)
+        self.assertEqual(target["id"],self.enemy["id"])
+        self.assertTrue(fire[0])
+
     def test_mortar_ballistics_and_self_splash_exclusion(self):
         mortar = self.weapon("mortar")
         self.enemy["vel"] = [0,0,0]
@@ -243,6 +255,160 @@ class StrategyTests(unittest.TestCase):
         self.assertNotEqual(result.returncode,0)
         self.assertNotIn('"ready"',result.stdout)
         self.assertIn("FileNotFoundError",result.stderr)
+
+
+class TacticalRegressionTests(unittest.TestCase):
+    """Controlled feedback tests, not a replacement for the server simulation."""
+
+    def setUp(self):
+        self.hello,self.obs = fixture()
+        self.bot = Bot(self.hello)
+        self.world = flat_world()
+        self.replace_world(self.world)
+        self.obs["self"].update(pos=[-70,0,0],vel=[0,0,0],aim=[0,0],hp=1400)
+        self.obs["zone"].update(center=[0,0],radius=118,next_center=[0,0],next_radius=118,
+                                shrink_start=500,shrink_end=550)
+
+    def replace_world(self,world):
+        self.bot.world = world
+        self.bot.nav = Navigator(world,self.hello["config"]["mech"])
+        self.bot.combat = Combat(world,self.hello["config"])
+
+    def enemy(self,x=0,hp=1400):
+        return {"id":1,"kind":"mech","pos":[x,0,0],"vel":[0,0,0],"aim":[math.pi,0],
+                "hp":hp,"max_hp":1400,"weapons":["gun"]}
+
+    def test_never_reload_partial_magazine_while_tracking_enemy(self):
+        self.obs["mechs"] = [self.enemy()]
+        gun = self.obs["self"]["weapons"][0]
+        gun.update(ammo=5,cooldown=0.2)
+        action = self.bot.act(self.obs)
+        self.assertFalse(action["reload"])
+        self.assertNotEqual(action["aim"],[0,0])
+
+    def test_quiet_reload_and_empty_reload_still_work(self):
+        gun = self.obs["self"]["weapons"][0]
+        gun["ammo"] = 5
+        self.assertTrue(self.bot.act(self.obs)["reload"])
+        gun["ammo"] = 0
+        self.obs["mechs"] = [self.enemy()]
+        self.assertTrue(self.bot.act(self.obs)["reload"])
+
+    def test_remember_weapon_after_looking_away(self):
+        item = {"id":8001,"kind":"laser","pos":[-10,0,0]}
+        self.obs["pickups"] = [item]
+        self.bot.act(self.obs)
+        self.assertEqual(self.bot.goal_kind,"weapon")
+        original_goal = self.bot.goal
+        self.obs.update(t=2,tick=40,pickups=[])
+        self.bot.act(self.obs)
+        self.assertEqual(self.bot.goal,original_goal)
+        self.assertEqual(self.bot.goal_kind,"weapon")
+        self.assertEqual(len(self.bot.loot.get("pickups")),1)
+
+    def test_missing_nearby_loot_is_not_pursued_forever(self):
+        self.obs["cubes"] = [{"id":5001,"pos":[-68,0,0]}]
+        memory = LootMemory()
+        memory.update(self.obs,self.world)
+        self.obs.update(t=1,tick=20,cubes=[])
+        memory.update(self.obs,self.world)
+        self.assertEqual(memory.get("cubes"),[])
+
+    def test_weapon_objectives_still_available_at_cube_stat_cap(self):
+        self.obs["self"]["cubes"] = 10
+        self.obs["pickups"] = [{"id":8001,"kind":"laser","pos":[-10,0,0]}]
+        self.bot.act(self.obs)
+        self.assertEqual(self.bot.goal_kind,"weapon")
+
+    def test_recovery_hysteresis_does_not_restart_fight_at_60_percent(self):
+        me = self.obs["self"]
+        me["hp"] = 700
+        self.bot.select_mode(self.obs)
+        self.assertTrue(self.bot.recovering)
+        me["hp"] = 1000
+        self.bot.select_mode(self.obs)
+        self.assertTrue(self.bot.recovering)
+        me["hp"] = 1300
+        self.bot.select_mode(self.obs)
+        self.assertFalse(self.bot.recovering)
+
+    def test_lightning_closes_distance_in_favorable_duel(self):
+        me = self.obs["self"]
+        me["weapons"][1] = {"kind":"lightning","cooldown":0,
+                            "stats":copy.deepcopy(self.hello["config"]["weapons"]["lightning"])}
+        self.obs["mechs"] = [self.enemy()]
+        action = self.bot.act(self.obs)
+        self.assertEqual(self.bot.mode,"fight")
+        self.assertLess(self.bot.fight_range,45)
+        self.assertGreater(action["move"][0],0)
+
+    def test_crossfire_does_not_trigger_an_aggressive_duel(self):
+        self.obs["mechs"] = [self.enemy(),{**self.enemy(10),"id":2}]
+        self.bot.act(self.obs)
+        self.assertEqual(self.bot.mode,"evade")
+        self.assertIsNone(self.bot.duel)
+
+    def test_replace_mortar_with_lightning_without_dropping_gun(self):
+        self.obs["self"]["weapons"][1] = {"kind":"mortar","cooldown":0,
+                "stats":copy.deepcopy(self.hello["config"]["weapons"]["mortar"])}
+        self.obs["pickups"] = [{"id":8001,"kind":"lightning","pos":[-70,0,0]}]
+        action = self.bot.act(self.obs)
+        self.assertEqual(action["take"],8001)
+        self.assertEqual(action["drop"],1)
+
+    def test_collect_cube_around_wall_with_movement_feedback(self):
+        self.replace_world(flat_world([rectangle(-4,-25,4,25)]))
+        me = self.obs["self"]
+        cube = {"id":5001,"pos":[30,0,0]}
+        self.obs["cubes"] = [cube]
+        collected = False
+        for decision in range(250):
+            self.obs.update(t=decision*.1,tick=decision*2)
+            # Turned-away loot vanishes from the observation; memory must retain it.
+            near_and_visible = math.dist(me["pos"],cube["pos"]) < 45 and self.bot.world.line_clear(
+                [*me["pos"][:2],8],[*cube["pos"][:2],1])
+            self.obs["cubes"] = [cube] if decision < 3 or near_and_visible else []
+            action = self.bot.act(self.obs)
+            new_pos = [me["pos"][0]+action["move"][0]*1.17,
+                       me["pos"][1]+action["move"][1]*1.17,0]
+            if self.bot.world.walk_clear(me["pos"],new_pos):
+                me["vel"] = [action["move"][0]*11.7,action["move"][1]*11.7,0]
+                me["pos"] = new_pos
+            else:
+                me["vel"] = [0,0,0]
+            me["aim"] = action["aim"]
+            if math.dist(me["pos"],cube["pos"]) < 3.5:
+                collected = True
+                break
+        self.assertTrue(collected,f"failed to collect cube: pos={me['pos']}, goal={self.bot.goal}")
+
+    def test_full_magazine_fire_rate_with_weapon_feedback(self):
+        # Stationary, unobstructed target; a two-tick weapon-clock model from the
+        # published rates verifies our reload policy, not the full game physics.
+        me = self.obs["self"]
+        self.obs["mechs"] = [self.enemy()]
+        gun = me["weapons"][0]
+        rounds = 0
+        early_reloads = 0
+        for decision in range(130):
+            self.obs.update(t=decision*.1,tick=decision*2)
+            action = self.bot.act(self.obs)
+            me["aim"] = action["aim"]
+            if action.get("reload",False) and gun["reload"] == 0:
+                early_reloads += gun["ammo"] > 0
+                gun["reload"] = gun["stats"]["reload"]
+            for _ in range(2):
+                was_reloading = gun["reload"] > 0
+                gun["reload"] = max(0,gun["reload"]-.05)
+                gun["cooldown"] = max(0,gun["cooldown"]-.05)
+                if was_reloading and gun["reload"] == 0:
+                    gun["ammo"] = gun["stats"]["mag"]
+                if action["fire"][0] and gun["cooldown"] <= 1e-8 and gun["reload"] == 0 and gun["ammo"] > 0:
+                    rounds += 1
+                    gun["ammo"] -= 1
+                    gun["cooldown"] = gun["stats"]["cooldown"]
+        self.assertEqual(early_reloads,0)
+        self.assertGreaterEqual(rounds,30)
 
 
 if __name__ == "__main__":

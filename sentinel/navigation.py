@@ -115,6 +115,9 @@ class Navigator:
         return points[closest:][1:] if distance(pos, points[closest]) < 5 else points[closest:]
 
     def waypoint(self, pos, goal, now, circle, threats):
+        direct = (goal[0], goal[1], self.world.ground(*goal[:2]))
+        if distance(pos, goal) < 85 and self.world.walk_clear(pos, direct, self.radius, self.height, self.step_up):
+            return direct
         moved = self.goal is None or distance(goal, self.goal) > 15
         if moved or (self.search_done and (now >= self.next_plan or not self.path)):
             self.search = None
