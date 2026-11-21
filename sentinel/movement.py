@@ -35,7 +35,7 @@ class GroundSteering:
         return firing_lane(self.world, self.config, (*point[:2], ground), me, enemy)[0]
 
     def choose(self, obs, waypoint, threats, mode, fight_range, retreat,
-               sprinting=False, cover=False, circle=None):
+               sprinting=False, cover=False, circle=None, duel_target_id=None):
         me, now = obs["self"], obs["t"]
         p, stats = me["pos"], me["stats"]
         circle = circle or (obs["zone"]["center"], obs["zone"]["radius"])
@@ -49,7 +49,7 @@ class GroundSteering:
         desired = unit(waypoint[0]-p[0], waypoint[1]-p[1])
         committed_pickup = mode in ("salvage", "opening")
         if visible and not cover and not committed_pickup:
-            enemy = visible[0][0]
+            enemy = next((e for e, _ in visible if e["id"] == duel_target_id), visible[0][0])
             away = unit(p[0]-enemy["pos"][0], p[1]-enemy["pos"][1])
             preferred = fight_range if mode == "fight" else 90
             force = max(-.7 if mode == "fight" else 0,
@@ -95,7 +95,7 @@ class GroundSteering:
                         ep = enemy["pos"]
                         bearing = math.atan2(q[1]-ep[1], q[0]-ep[0])
                         score += max(0, 1-abs(angle_error(bearing, enemy["aim"][0]))/.16)*24
-                if mode == "fight" and not cover:
+                if mode == "fight" and not cover and (duel_target_id is None or enemy["id"] == duel_target_id):
                     score += abs(d-fight_range)*.28*confidence
             # Closest approach uses our actual rollout velocity, including brake.
             vx, vy = (q[0]-p[0])/.40, (q[1]-p[1])/.40

@@ -15,6 +15,7 @@ from .cover import CoverPlanner
 from .movement import GroundSteering
 from .salvage import KillSalvage
 from .opener import Opener
+from .pressure import EarlyPressure
 
 
 def future_circle(zone, now, seconds):
@@ -48,6 +49,8 @@ class Bot:
         self.cover = CoverPlanner(self.world, self.config)
         self.salvage = KillSalvage(self.world, self.config)
         self.opener = Opener(self.world, self.config)
+        self.early_pressure = EarlyPressure(self.config)
+        self.pressure_focus = None
         self.motion = GroundSteering(self.world, self.config)
         self.cover_active = False
         self.cover_watch_goal = None
@@ -113,7 +116,11 @@ class Bot:
             ep = e["pos"]
             if self.world.line_clear(eye,[ep[0],ep[1],ep[2]+4.5]):
                 exposed.append(e)
+        credible = self.early_pressure.credible(obs, exposed)
+        separated = len(exposed) > 1 and len(credible) == 1
+        exposed = credible
         self.duel = None
+        self.pressure_focus = None
         self.mode = "recover" if self.recovering else "loot"
         if len(exposed) >= 2:
             self.mode = "recover" if self.recovering else "evade"
@@ -123,6 +130,8 @@ class Bot:
             favorable = (ratio > 0.70 and enemy.get("hp",1400) < me["hp"]*1.12)
             if (favorable and not self.recovering) or finish:
                 self.mode, self.duel = "fight", enemy
+                if separated:
+                    self.pressure_focus = enemy["id"]
                 second = next((w for w in me["weapons"] if w and w["kind"] != "gun"),None)
                 self.fight_range = 65
                 if second and second["kind"] == "lightning":
@@ -270,7 +279,8 @@ class Bot:
         move, self.sprinting = self.motion.choose(
             obs, waypoint, threats, self.mode, self.fight_range, retreat,
             sprinting=self.sprinting, cover=self.cover_active,
-            circle=future_circle(obs["zone"], now, 2))
+            circle=future_circle(obs["zone"], now, 2),
+            duel_target_id=self.pressure_focus if self.mode == "fight" else None)
         if self.mode == "salvage":
             # The pickup race already checked a ground corridor and sprint
             # reserve. Never introduce a blind jet on this short commitment.
@@ -389,6 +399,8 @@ class Bot:
         targets = sorted(obs["mechs"], key=lambda e: (e["kind"] != "mech", distance(me["pos"],e["pos"])))
         if opening is not None:
             targets = [opening.exclusive_target] if opening.exclusive_target else []
+        elif self.mode == "fight" and self.pressure_focus is not None:
+            targets = [target for target in targets if target["id"] == self.pressure_focus]
         elif not retreat and (not threats or distance(me["pos"],threats[0][0]["pos"]) > 110):
             # Crate farming only when quiet and close enough to collect the cube.
             targets += sorted((c for c in self.loot.get("crates") if distance(me["pos"],c["pos"]) < 110),
