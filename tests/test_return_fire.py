@@ -82,7 +82,7 @@ class ReturnFireTests(unittest.TestCase):
         self.gun.update(ammo=12, reload=1.2)
         self.assertFalse(self.bot.act(self.obs)["fire"][0])
 
-    def test_secondary_weapons_are_not_started_during_return_fire(self):
+    def test_distant_return_fire_uses_the_gun(self):
         self.damage()
         for kind in ("laser", "mortar", "lightning"):
             with self.subTest(kind=kind):
@@ -90,6 +90,25 @@ class ReturnFireTests(unittest.TestCase):
                     "kind": kind, "charge": 0, "cooldown": 0,
                     "stats": copy.deepcopy(self.hello["config"]["weapons"][kind])}
                 self.assertEqual(self.bot.act(self.obs)["fire"], [True, False])
+
+    def test_instant_arc_can_answer_a_close_pursuer_with_gun_lead(self):
+        self.me.update(pos=[-39, 0, 0], energy=80)
+        self.me["weapons"][1] = {"kind": "lightning", "cooldown": 0,
+                                  "stats": copy.deepcopy(self.hello["config"]["weapons"]["lightning"])}
+        self.enemy["vel"] = [0, 18, 0]
+        lead_aim = self.bot.combat.solve(self.me, self.enemy, self.gun)[0]
+        self.me["aim"] = list(lead_aim)
+        self.damage()
+        action = self.bot.act(self.obs)
+        self.assertEqual(action["fire"], [True, True])
+        self.assertEqual(action["aim"], lead_aim)
+        self.assertEqual(self.bot.mode, "recover")
+
+        self.me["energy"] = 37
+        self.assertEqual(self.bot.act(self.obs)["fire"], [True, False])
+        self.me["energy"] = 80
+        self.obs.update(t=11.1, tick=222, events=[])
+        self.assertEqual(self.bot.act(self.obs)["fire"], [False, False])
 
     def test_cover_range_and_passive_targets_still_block_return_fire(self):
         combat = Combat(flat_world([rectangle(-40, -20, -35, 20)]),

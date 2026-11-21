@@ -94,18 +94,24 @@ class Combat:
         if not targets:
             return None, [False, False], None
         options = []
+        arc = next((weapon for weapon in me["weapons"]
+                    if weapon and weapon["kind"] == "lightning"), None)
         for target in targets[:8]:
             d = distance(me["pos"], target["pos"])
             hostile = target.get("kind") == "mech"
-            gun_only = False
+            allowed = None
             if retreat and not final_duel and (not hostile or d > 28) and target.get("hp", 1400) > 130:
                 if not (return_fire and hostile):
                     continue
-                gun_only = True
+                # An instant arc can answer a close pursuer without the laser's
+                # movement penalty. Retain enough energy for a separate escape.
+                arc_ready = (arc and d < arc["stats"]["range"]-.5 and
+                             me["energy"] > arc["stats"]["energy"]+36)
+                allowed = ("gun", "lightning") if arc_ready else ("gun",)
             for slot, weapon in enumerate(me["weapons"]):
                 if weapon is None or (forced_weapon and weapon["kind"] != forced_weapon):
                     continue
-                if gun_only and weapon["kind"] != "gun":
+                if allowed is not None and weapon["kind"] not in allowed:
                     continue
                 solution = self.solve(me, target, weapon)
                 if solution is None:
@@ -124,12 +130,15 @@ class Combat:
                 score += 120 if weapon.get("charge", 0) else 0
                 score += 24 if target.get("id") == self.locked_id else 0
                 score -= weapon.get("cooldown", 0)*65
-                if kind == "gun" and (weapon.get("reload", 0) > 0 or weapon.get("ammo", 1) <= 0):
-                    score -= 65
-                options.append((score, slot, target, solution, gun_only))
+                if kind == "gun":
+                    if weapon.get("reload", 0) > 0 or weapon.get("ammo", 1) <= 0:
+                        score -= 65
+                    elif allowed == ("gun", "lightning"):
+                        score += 61  # the wider arc can use the gun's lead
+                options.append((score, slot, target, solution, allowed))
         if not options:
             return None, [False, False], None
-        _, primary, target, solution, gun_only = max(options, key=lambda o: o[0])
+        _, primary, target, solution, allowed = max(options, key=lambda o: o[0])
         self.locked_id = target.get("id")
         aim, point, radius, height = solution
         stats_me = me["stats"]
@@ -138,7 +147,7 @@ class Combat:
         for slot, weapon in enumerate(me["weapons"]):
             if not weapon or (forced_weapon and weapon["kind"] != forced_weapon):
                 continue
-            if gun_only and weapon["kind"] != "gun":
+            if allowed is not None and weapon["kind"] not in allowed:
                 continue
             solved = solution if slot == primary else self.solve(me, target, weapon)
             if solved is None:
